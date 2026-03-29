@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}SBT Pipeline — Accueil{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-1"><i class="bi bi-diagram-3"></i> SBT Intelligence Pipeline</h2>
+        <p class="text-secondary">Recherche, scraping et analyse de prospects B2B</p>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number text-info">{{ stats.total }}</div>
+            <div class="label">Résultats totaux</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number text-warning">{{ stats.pending }}</div>
+            <div class="label">En attente</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number text-success">{{ stats.scraped }}</div>
+            <div class="label">Scrapés</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number text-danger">{{ stats.error }}</div>
+            <div class="label">Erreurs</div>
+        </div>
+    </div>
+</div>
+
+<!-- Contrôle Pipeline -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card p-3">
+            <h5><i class="bi bi-search"></i> Target Searcher</h5>
+            <p class="text-secondary small mb-2">Recherche DDG + classification hybride</p>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-info btn-pipeline" onclick="runAgent('searcher', {max_per_query: 5})">
+                    <i class="bi bi-play-fill"></i> Lancer
+                </button>
+                <span id="status-searcher" class="small text-secondary">Prêt</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3">
+            <h5><i class="bi bi-globe"></i> Scrapper Agent</h5>
+            <p class="text-secondary small mb-2">Crawl + extraction LLM + Neo4j</p>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-success btn-pipeline" onclick="runAgent('scrapper', {limit: 20})">
+                    <i class="bi bi-play-fill"></i> Lancer
+                </button>
+                <span id="status-scrapper" class="small text-secondary">Prêt</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3">
+            <h5><i class="bi bi-bar-chart-line"></i> Marketing Agent</h5>
+            <p class="text-secondary small mb-2">Analyse prospects + plan de ciblage</p>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-warning btn-pipeline" onclick="runAgent('marketing')">
+                    <i class="bi bi-play-fill"></i> Lancer
+                </button>
+                <span id="status-marketing" class="small text-secondary">Prêt</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accès rapide -->
+<div class="row g-3">
+    <div class="col-md-4">
+        <a href="/dashboard" class="card p-4 text-decoration-none" style="cursor:pointer">
+            <h5 class="text-info"><i class="bi bi-table"></i> Dashboard</h5>
+            <p class="text-secondary small mb-0">Voir toutes les entreprises et statuts</p>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="/graph" class="card p-4 text-decoration-none" style="cursor:pointer">
+            <h5 class="text-success"><i class="bi bi-bezier2"></i> Graphe Neo4j</h5>
+            <p class="text-secondary small mb-0">Visualiser les relations entre entreprises</p>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="/marketing" class="card p-4 text-decoration-none" style="cursor:pointer">
+            <h5 class="text-warning"><i class="bi bi-megaphone"></i> Marketing</h5>
+            <p class="text-secondary small mb-0">Analyses et plan de ciblage</p>
+        </a>
+    </div>
+</div>
+{% endblock %}

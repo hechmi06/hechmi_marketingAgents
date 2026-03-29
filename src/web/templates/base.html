@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SBT Pipeline{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root { --bs-body-bg: #0f1117; --bs-body-color: #e0e0e0; }
+        body { background: #0f1117; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .navbar { background: #161b22 !important; border-bottom: 1px solid #30363d; }
+        .navbar-brand { font-weight: 700; color: #58a6ff !important; }
+        .nav-link { color: #8b949e !important; }
+        .nav-link:hover, .nav-link.active { color: #58a6ff !important; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; }
+        .card-header { background: #1c2129; border-bottom: 1px solid #30363d; font-weight: 600; }
+        .stat-card { text-align: center; padding: 1.5rem; }
+        .stat-card .number { font-size: 2.5rem; font-weight: 700; }
+        .stat-card .label { color: #8b949e; font-size: 0.85rem; text-transform: uppercase; }
+        .btn-pipeline { border-radius: 8px; font-weight: 600; padding: 0.6rem 1.5rem; }
+        .badge-pending { background: #d29922; }
+        .badge-scraped { background: #238636; }
+        .badge-error { background: #da3633; }
+        .table { color: #e0e0e0; }
+        .table th { color: #8b949e; font-weight: 600; border-color: #30363d; }
+        .table td { border-color: #21262d; }
+        .spinner-running { color: #58a6ff; }
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/"><i class="bi bi-diagram-3"></i> SBT Pipeline</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Accueil</a>
+                <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a>
+                <a class="nav-link {% if request.path == '/graph' %}active{% endif %}" href="/graph">Graphe</a>
+                <a class="nav-link {% if request.path == '/marketing' %}active{% endif %}" href="/marketing">Marketing</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showToast(msg, type='info') {
+            const c = document.getElementById('toast-container');
+            const colors = {info:'#58a6ff', success:'#238636', error:'#da3633', warning:'#d29922'};
+            const d = document.createElement('div');
+            d.style.cssText = `background:${colors[type]||colors.info};color:#fff;padding:12px 20px;border-radius:8px;margin-top:8px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.4);`;
+            d.textContent = msg;
+            c.appendChild(d);
+            setTimeout(() => d.remove(), 4000);
+        }
+
+        function runAgent(name, params={}) {
+            fetch(`/api/run/${name}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(params)
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.error) showToast(d.error, 'warning');
+                else showToast(`${name} lancé`, 'success');
+                pollStatus();
+            })
+            .catch(e => showToast('Erreur: ' + e, 'error'));
+        }
+
+        function pollStatus() {
+            fetch('/api/status').then(r=>r.json()).then(data => {
+                for (const [name, st] of Object.entries(data)) {
+                    const el = document.getElementById(`status-${name}`);
+                    if (el) {
+                        if (st.running) {
+                            el.innerHTML = '<span class="spinner-border spinner-border-sm spinner-running"></span> ' + st.message;
+                        } else {
+                            el.textContent = st.message || 'Prêt';
+                        }
+                    }
+                }
+                if (Object.values(data).some(s => s.running)) {
+                    setTimeout(pollStatus, 2000);
+                }
+            });
+        }
+        setInterval(pollStatus, 5000);
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

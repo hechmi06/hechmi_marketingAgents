@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Marketing — SBT Pipeline{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h3><i class="bi bi-megaphone"></i> Analyse Marketing</h3>
+    </div>
+    <div class="col-auto d-flex gap-2 align-items-center">
+        <button class="btn btn-sm btn-outline-warning btn-pipeline" onclick="runAgent('marketing')">
+            <i class="bi bi-play-fill"></i> Lancer l'analyse
+        </button>
+        <span id="status-marketing" class="small text-secondary">Prêt</span>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Tier 1 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-building"></i> Tier 1 — Fabricants coffrets
+                <span class="badge bg-success ms-2">{{ data.tier1|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.tier1 %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Nom</th><th>Email</th><th>Pays</th><th>Score</th></tr></thead>
+                        <tbody>
+                        {% for c in data.tier1 %}
+                        <tr>
+                            <td>
+                                {% if c.website %}
+                                <a href="{{ c.website }}" target="_blank" class="text-info text-decoration-none">{{ c.name }}</a>
+                                {% else %}
+                                {{ c.name }}
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ c.email or '-' }}</td>
+                            <td class="small">{{ c.country or '-' }}</td>
+                            <td>
+                                {% if c.confidence %}
+                                <div class="progress" style="height:6px;width:60px;background:#21262d">
+                                    <div class="progress-bar bg-success" style="width:{{ (c.confidence * 100)|int }}%"></div>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-secondary mb-0">Aucune entreprise Tier 1. Lancez d'abord le searcher + scrapper.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tier 2 -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-gear"></i> Tier 2 — Sous-traitants
+                <span class="badge bg-primary ms-2">{{ data.tier2|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if data.tier2 %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Nom</th><th>Email</th><th>Pays</th><th>Score</th></tr></thead>
+                        <tbody>
+                        {% for c in data.tier2 %}
+                        <tr>
+                            <td>
+                                {% if c.website %}
+                                <a href="{{ c.website }}" target="_blank" class="text-info text-decoration-none">{{ c.name }}</a>
+                                {% else %}
+                                {{ c.name }}
+                                {% endif %}
+                            </td>
+                            <td class="small">{{ c.email or '-' }}</td>
+                            <td class="small">{{ c.country or '-' }}</td>
+                            <td>
+                                {% if c.confidence %}
+                                <div class="progress" style="height:6px;width:60px;background:#21262d">
+                                    <div class="progress-bar bg-primary" style="width:{{ (c.confidence * 100)|int }}%"></div>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-secondary mb-0">Aucune entreprise Tier 2. Lancez d'abord le searcher + scrapper.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section résultats LLM -->
+<div class="row mt-4" id="marketing-results" style="display:none">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-lightbulb"></i> Plan de ciblage (dernière analyse)</div>
+            <div class="card-body" id="targeting-content">
+                <p class="text-secondary">Lancez l'agent marketing pour voir les résultats ici.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section Pitchs personnalisés -->
+<div class="row mt-4" id="pitches-section" style="display:none">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-envelope-paper"></i> Pitchs commerciaux personnalisés
+                <span class="badge bg-warning text-dark ms-2" id="pitch-count">0</span>
+            </div>
+            <div class="card-body p-0" id="pitches-container">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const origRunAgent = window.runAgent;
+    if (origRunAgent) {
+        window.runAgent = function(name) {
+            origRunAgent(name);
+            if (name === 'marketing') {
+                pollMarketingResults();
+            }
+        };
+    }
+});
+
+function pollMarketingResults() {
+    const interval = setInterval(async () => {
+        try {
+            const resp = await fetch('/api/status');
+            const data = await resp.json();
+            if (!data.marketing_running) {
+                clearInterval(interval);
+                loadMarketingResults();
+            }
+        } catch(e) { }
+    }, 3000);
+}
+
+async function loadMarketingResults() {
+    try {
+        const resp = await fetch('/api/marketing-results');
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        if (data.targeting_plan && Object.keys(data.targeting_plan).length > 0) {
+            const section = document.getElementById('marketing-results');
+            const content = document.getElementById('targeting-content');
+            section.style.display = '';
+            let html = '';
+            for (const key of ['priorité_1', 'priorité_2', 'priorité_3']) {
+                const p = data.targeting_plan[key];
+                if (!p) continue;
+                const badgeClass = key === 'priorité_1' ? 'bg-danger' : key === 'priorité_2' ? 'bg-warning text-dark' : 'bg-secondary';
+                html += `
+                    <div class="mb-3 p-3" style="background:#161b22;border-radius:8px">
+                        <span class="badge ${badgeClass} mb-1">${key.toUpperCase()}</span>
+                        <div class="fw-bold">${(p.entreprises||[]).join(', ')}</div>
+                        <div class="small text-info mt-1"><i class="bi bi-lightning"></i> ${p.action || ''}</div>
+                        <div class="small text-secondary mt-1"><i class="bi bi-chat-quote"></i> ${p.message_cle || ''}</div>
+                    </div>`;
+            }
+            if (data.targeting_plan.conseil_global) {
+                html += `<div class="alert alert-info mt-2 mb-0"><i class="bi bi-info-circle"></i> ${data.targeting_plan.conseil_global}</div>`;
+            }
+            content.innerHTML = html;
+        }
+
+        if (data.pitches && data.pitches.length > 0) {
+            const section = document.getElementById('pitches-section');
+            const container = document.getElementById('pitches-container');
+            document.getElementById('pitch-count').textContent = data.pitches.length;
+            section.style.display = '';
+
+            let html = '<div class="accordion" id="pitchAccordion">';
+            data.pitches.forEach((pitch, i) => {
+                const priorityBadge = pitch.priority === 'haute'
+                    ? '<span class="badge bg-danger">HAUTE</span>'
+                    : '<span class="badge bg-warning text-dark">MOYENNE</span>';
+                html += `
+                <div class="accordion-item" style="background:#0d1117;border-color:#30363d">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#pitch-${i}"
+                                style="background:#161b22;color:#e6edf3;border-color:#30363d">
+                            ${priorityBadge}
+                            <span class="badge bg-${pitch.tier===1?'success':'primary'} ms-2">Tier ${pitch.tier}</span>
+                            <span class="ms-2 fw-bold">${pitch.company}</span>
+                            <span class="ms-auto small text-secondary">${pitch.subject || ''}</span>
+                        </button>
+                    </h2>
+                    <div id="pitch-${i}" class="accordion-collapse collapse" data-bs-parent="#pitchAccordion">
+                        <div class="accordion-body" style="background:#0d1117">
+                            <div class="mb-3">
+                                <span class="badge bg-info mb-1">Argument clé</span>
+                                <p class="mb-0">${pitch.key_argument || ''}</p>
+                            </div>
+                            <div class="mb-3">
+                                <span class="badge bg-success mb-1"><i class="bi bi-envelope"></i> Email</span>
+                                <div class="p-2 rounded" style="background:#161b22;white-space:pre-wrap;font-size:0.9rem">${pitch.pitch_email || ''}</div>
+                                <button class="btn btn-sm btn-outline-success mt-1" onclick="copyText(this, 'email', ${i})">
+                                    <i class="bi bi-clipboard"></i> Copier l'email
+                                </button>
+                            </div>
+                            <div class="mb-3">
+                                <span class="badge bg-primary mb-1"><i class="bi bi-linkedin"></i> LinkedIn</span>
+                                <div class="p-2 rounded" style="background:#161b22;white-space:pre-wrap;font-size:0.9rem">${pitch.pitch_linkedin || ''}</div>
+                                <button class="btn btn-sm btn-outline-primary mt-1" onclick="copyText(this, 'linkedin', ${i})">
+                                    <i class="bi bi-clipboard"></i> Copier le message
+                                </button>
+                            </div>
+                            <div>
+                                <span class="badge bg-secondary mb-1"><i class="bi bi-arrow-repeat"></i> Relance</span>
+                                <p class="mb-0 small">${pitch.follow_up || ''}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+    } catch(e) {
+        console.error('Erreur chargement résultats marketing:', e);
+    }
+}
+
+function copyText(btn, type, idx) {
+    const container = btn.parentElement;
+    const textDiv = container.querySelector('div[style*="pre-wrap"]');
+    if (textDiv) {
+        navigator.clipboard.writeText(textDiv.textContent).then(() => {
+            btn.innerHTML = '<i class="bi bi-check"></i> Copié !';
+            setTimeout(() => {
+                btn.innerHTML = type === 'email'
+                    ? '<i class="bi bi-clipboard"></i> Copier l\'email'
+                    : '<i class="bi bi-clipboard"></i> Copier le message';
+            }, 2000);
+        });
+    }
+}
+
+loadMarketingResults();
+</script>
+{% endblock %}

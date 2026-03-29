@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — SBT Pipeline{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h3><i class="bi bi-table"></i> Dashboard</h3>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i> Rafraîchir
+        </button>
+    </div>
+</div>
+
+<!-- Stats bar -->
+<div class="row mb-4 g-2">
+    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-info">{{ stats.total }}</div><div class="label">Total</div></div></div>
+    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-warning">{{ stats.pending }}</div><div class="label">Pending</div></div></div>
+    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-success">{{ stats.scraped }}</div><div class="label">Scraped</div></div></div>
+    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-danger">{{ stats.error }}</div><div class="label">Erreurs</div></div></div>
+    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-primary">{{ stats.raw_companies }}</div><div class="label">Raw Co.</div></div></div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="d-flex gap-2 align-items-center">
+            <span class="text-secondary small">Filtre :</span>
+            <button class="btn btn-sm btn-outline-light filter-btn active" data-filter="all">Tous</button>
+            <button class="btn btn-sm btn-outline-warning filter-btn" data-filter="pending">Pending</button>
+            <button class="btn btn-sm btn-outline-success filter-btn" data-filter="scraped">Scraped</button>
+            <button class="btn btn-sm btn-outline-danger filter-btn" data-filter="error">Error</button>
+            <input type="text" class="form-control form-control-sm ms-auto" id="search-input"
+                   placeholder="Rechercher..." style="max-width:250px;background:#0f1117;border-color:#30363d;color:#e0e0e0">
+        </div>
+    </div>
+</div>
+
+<!-- Tableau -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="results-table">
+            <thead>
+                <tr>
+                    <th>Domaine</th>
+                    <th>Titre</th>
+                    <th>Tier</th>
+                    <th>Score</th>
+                    <th>Statut</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr class="result-row" data-status="{{ r.status }}">
+                    <td><a href="{{ r.url }}" target="_blank" class="text-info text-decoration-none">{{ r.domain }}</a></td>
+                    <td class="text-truncate" style="max-width:300px" title="{{ r.title }}">{{ r.title }}</td>
+                    <td>
+                        {% if r.tier_final == 1 %}
+                            <span class="badge bg-success">T1</span>
+                        {% elif r.tier_final == 2 %}
+                            <span class="badge bg-primary">T2</span>
+                        {% else %}
+                            <span class="badge bg-secondary">?</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.score }}</td>
+                    <td>
+                        {% if r.status == 'pending' %}
+                            <span class="badge badge-pending">pending</span>
+                        {% elif r.status == 'scraped' %}
+                            <span class="badge badge-scraped">scraped</span>
+                        {% elif r.status == 'error' %}
+                            <span class="badge badge-error">error</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ r.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="small text-secondary">{{ r.source }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+        document.querySelectorAll('.result-row').forEach(row => {
+            row.style.display = (filter === 'all' || row.dataset.status === filter) ? '' : 'none';
+        });
+    });
+});
+
+document.getElementById('search-input').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.result-row').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}
