@@ -15,7 +15,11 @@ from src.storage.embeddings import generate_embedding
 from src.storage.graph_store import GraphStore
 
 
-TIER1_QUERIES = [
+# ============================================================
+# REQUÊTES STATIQUES (fallback si LLM indisponible)
+# ============================================================
+
+_DEFAULT_TIER1_QUERIES = [
     '"coffret de comptage" fabricant France',
     '"NF C 14-100" fabricant coffret electrique',
     '"coffret Enedis" fabricant OR constructeur',
@@ -27,7 +31,7 @@ TIER1_QUERIES = [
     'fabricant "coffret electrique" comptage consommation',
 ]
 
-TIER2_QUERIES = [
+_DEFAULT_TIER2_QUERIES = [
     '"faisceau electrique" "coffret" sous-traitant OR assemblage',
     '"cablage interne" coffret electrique assemblage sous-traitance',
     '"wiring harness" "meter cabinet" OR "metering enclosure" subcontractor',
@@ -38,6 +42,101 @@ TIER2_QUERIES = [
     'sous-traitant "faisceau electrique" Tunisie OR Maroc coffret',
     '"cable harness" subcontractor Romania OR Bulgaria "electrical cabinet"',
 ]
+
+# ============================================================
+# GÉNÉRATION DYNAMIQUE DES REQUÊTES VIA LLM
+# ============================================================
+
+_QUERY_GEN_PROMPT = """\
+Tu es un expert en prospection B2B industrielle.
+SBT est une entreprise tunisienne spécialisée dans :
+- Le câblage électrique industriel
+- Les faisceaux électriques
+- L'assemblage de coffrets de comptage
+- La sous-traitance pour fabricants européens
+
+SBT cherche à prospecter deux types d'entreprises en Europe (France, Belgique, Allemagne, Espagne, Italie) :
+
+TYPE 1 — Fabricants de coffrets électriques (Tier 1) :
+Entreprises qui fabriquent et vendent des coffrets de comptage, armoires électriques, meter cabinets, tableaux électriques, enclosures.
+
+TYPE 2 — Sous-traitants câblage (Tier 2) :
+Entreprises spécialisées dans le câblage électrique, faisceaux, wiring harness, cable assembly, assemblage de coffrets, panel wiring.
+
+Génère des requêtes de recherche web variées et efficaces pour trouver ces entreprises via DuckDuckGo.
+Chaque requête doit être différente des exemples habituels, cibler des termes techniques précis, et éviter les annuaires et marketplaces.
+
+Retourne UNIQUEMENT un JSON valide :
+{{
+  "tier1_queries": [
+    "requête 1 pour Tier 1",
+    "requête 2 pour Tier 1",
+    "requête 3 pour Tier 1",
+    "requête 4 pour Tier 1",
+    "requête 5 pour Tier 1"
+  ],
+  "tier2_queries": [
+    "requête 1 pour Tier 2",
+    "requête 2 pour Tier 2",
+    "requête 3 pour Tier 2",
+    "requête 4 pour Tier 2",
+    "requête 5 pour Tier 2"
+  ]
+}}
+
+Règles :
+- Varie les langues : français, anglais, allemand si possible
+- Utilise des guillemets pour les phrases exactes
+- Cible des sites officiels d'entreprises, pas des annuaires
+- Inclus des pays variés : France, Belgique, Allemagne, Espagne
+- Génère des requêtes différentes à chaque fois, créatives et inattendues
+"""
+
+
+def generate_queries_llm(n_queries: int = 5) -> tuple[list[str], list[str]]:
+    """
+    Génère dynamiquement des requêtes de recherche via Ollama.
+    Retourne (tier1_queries, tier2_queries).
+    En cas d'échec, retourne les listes statiques par défaut.
+    """
+    logger.info("Génération dynamique des requêtes via LLM...")
+    try:
+        response = httpx.post(
+            f"{settings.ollama_base_url}/api/generate",
+            json={
+                "model":  settings.ollama_model,
+                "prompt": _QUERY_GEN_PROMPT,
+                "stream": False,
+                "format": "json",
+            },
+            timeout=90.0,
+        )
+        response.raise_for_status()
+        raw = response.json().get("response", "{}")
+        data = json.loads(raw)
+
+        tier1 = data.get("tier1_queries", [])
+        tier2 = data.get("tier2_queries", [])
+
+        tier1 = [q for q in tier1 if isinstance(q, str) and len(q) >= 10]
+        tier2 = [q for q in tier2 if isinstance(q, str) and len(q) >= 10]
+
+        if len(tier1) >= 3 and len(tier2) >= 3:
+            logger.success(f"LLM a généré {len(tier1)} requêtes Tier 1 + {len(tier2)} requêtes Tier 2")
+            # Combiner LLM + statiques pour maximiser la couverture
+            combined_t1 = tier1 + [q for q in _DEFAULT_TIER1_QUERIES if q not in tier1]
+            combined_t2 = tier2 + [q for q in _DEFAULT_TIER2_QUERIES if q not in tier2]
+            return combined_t1, combined_t2
+
+        logger.warning("LLM a renvoyé trop peu de requêtes — fallback sur requêtes statiques")
+        return _DEFAULT_TIER1_QUERIES, _DEFAULT_TIER2_QUERIES
+
+    except json.JSONDecodeError:
+        logger.warning("LLM réponse non-JSON pour les requêtes — fallback statique")
+        return _DEFAULT_TIER1_QUERIES, _DEFAULT_TIER2_QUERIES
+    except Exception as e:
+        logger.warning(f"Génération LLM des requêtes échouée ({e}) — fallback statique")
+        return _DEFAULT_TIER1_QUERIES, _DEFAULT_TIER2_QUERIES
 EXCLUDED_DOMAINS = {
     # Réseaux sociaux
     "linkedin.com", "facebook.com", "instagram.com",
@@ -352,17 +451,22 @@ async def run_pipeline(max_per_query: int = 10) -> list[dict]:
     already_known = sqlite_domains | neo4j_domains
     logger.info(f"Domaines déjà connus : {len(already_known)} (SQLite={len(sqlite_domains)}, Neo4j={len(neo4j_domains)})")
 
-    # 1. collecte brute
-    logger.info("Etape 1/4 — Recherche web MCP")
+    # 1. Génération dynamique des requêtes
+    logger.info("Etape 1/5 — Génération dynamique des requêtes LLM")
+    tier1_queries, tier2_queries = generate_queries_llm()
+    logger.info(f"Requêtes finales : {len(tier1_queries)} Tier 1 + {len(tier2_queries)} Tier 2")
+
+    # 2. collecte brute
+    logger.info("Etape 2/5 — Recherche web MCP")
     async with MCPSearchClient() as client:
-        tier1_raw = await search_and_collect(TIER1_QUERIES, client, max_per_query)
-        tier2_raw = await search_and_collect(TIER2_QUERIES, client, max_per_query)
+        tier1_raw = await search_and_collect(tier1_queries, client, max_per_query)
+        tier2_raw = await search_and_collect(tier2_queries, client, max_per_query)
 
     all_raw = tier1_raw + tier2_raw
     logger.info(f"{len(all_raw)} resultats bruts collectes")
 
-    # 2. dedup (intra-batch + vs base existante)
-    logger.info("Etape 2/4 — Deduplication")
+    # 3. dedup (intra-batch + vs base existante)
+    logger.info("Etape 3/5 — Deduplication")
     deduped = deduplicate(all_raw)
 
     before_filter = len(deduped)
@@ -375,8 +479,8 @@ async def run_pipeline(max_per_query: int = 10) -> list[dict]:
         logger.info(f"{skipped} domaines déjà connus ignorés")
     logger.info(f"{len(deduped)} resultats apres deduplication")
 
-    # 3. classification hybride
-    logger.info("Etape 3/4 — Classification hybride")
+    # 4. classification hybride
+    logger.info("Etape 4/5 — Classification hybride")
     final_results = []
 
     for r in deduped:
@@ -427,6 +531,7 @@ async def run_pipeline(max_per_query: int = 10) -> list[dict]:
             f"OK | {r['domain']} | label={label} | confidence={confidence} | reason={reason}"
         )
 
+    logger.info("Etape 5/5 — Sauvegarde terminée")
     logger.success(f"{len(final_results)} prospects sauvegardes dans SQLite")
     return final_results
 

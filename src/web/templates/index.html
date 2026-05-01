@@ -1,75 +1,351 @@
 {% extends "base.html" %}
 {% block title %}SBT Pipeline — Accueil{% endblock %}
 
+{% block extra_head %}
+<style>
+    .hero {
+        background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08));
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 48px 40px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+    .hero .subtitle { color: var(--text-secondary); font-size: 1rem; max-width: 500px; }
+
+    .pipeline-steps {
+        display: flex;
+        gap: 0;
+        align-items: stretch;
+        margin-top: 32px;
+    }
+
+    .pipeline-step {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .pipeline-step .step-icon {
+        width: 52px; height: 52px;
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.3rem;
+        margin-bottom: 12px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .pipeline-step .step-label { font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; }
+    .pipeline-step .step-desc { font-size: 0.72rem; color: var(--text-secondary); text-align: center; max-width: 140px; }
+
+    .pipeline-connector {
+        position: absolute;
+        top: 26px;
+        left: calc(50% + 26px);
+        width: calc(100% - 52px);
+        height: 2px;
+        background: var(--border);
+        z-index: 0;
+    }
+
+    .pipeline-connector::after {
+        content: '';
+        position: absolute;
+        right: -4px;
+        top: -3px;
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid var(--border);
+        border-top: 2px solid var(--border);
+        transform: rotate(45deg);
+    }
+
+    .agent-card {
+        border-radius: 16px;
+        padding: 24px;
+        cursor: default;
+    }
+
+    .agent-card .agent-icon {
+        width: 48px; height: 48px;
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+    }
+
+    .agent-card h5 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .agent-card .desc { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
+
+    .agent-card .agent-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .quicklink {
+        border-radius: 16px;
+        padding: 20px 24px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        cursor: pointer;
+    }
+
+    .quicklink:hover {
+        border-color: var(--accent-blue) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .quicklink .ql-icon {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .quicklink h6 { font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; color: var(--text-primary); }
+    .quicklink p { font-size: 0.78rem; margin-bottom: 0; color: var(--text-secondary); }
+
+    .quicklink .ql-arrow {
+        margin-left: auto;
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        transition: transform 0.2s;
+    }
+
+    .quicklink:hover .ql-arrow { transform: translateX(4px); color: var(--accent-blue); }
+
+    /* Orchestrator CTA */
+    .orch-cta {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.1));
+        border: 1px solid rgba(139,92,246,0.3);
+        border-radius: 20px;
+        padding: 28px 32px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .orch-cta::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(139,92,246,0.05), transparent);
+        animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+    .orch-icon {
+        width: 56px; height: 56px;
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+        border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; color: #fff;
+        flex-shrink: 0;
+        box-shadow: 0 4px 20px rgba(139,92,246,0.3);
+    }
+
+    .orch-info { flex: 1; z-index: 1; }
+    .orch-info h4 { font-weight: 800; font-size: 1.1rem; margin-bottom: 4px; letter-spacing: -0.3px; }
+    .orch-info p { color: var(--text-secondary); font-size: 0.82rem; margin-bottom: 0; }
+
+    .btn-orchestrator {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 28px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        z-index: 1;
+        box-shadow: 0 4px 15px rgba(139,92,246,0.3);
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .btn-orchestrator:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(139,92,246,0.4); }
+    .btn-orchestrator:active { transform: translateY(0); }
+    .btn-orchestrator:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .orch-progress {
+        position: absolute;
+        bottom: 0; left: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+        border-radius: 0 0 20px 20px;
+        transition: width 0.5s ease;
+    }
+
+    .orch-status {
+        font-size: 0.78rem;
+        color: var(--accent-purple);
+        z-index: 1;
+        min-width: 120px;
+        text-align: right;
+    }
+
+    @keyframes fadeInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .fade-in { animation: fadeInUp 0.5s ease both; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2 class="mb-1"><i class="bi bi-diagram-3"></i> SBT Intelligence Pipeline</h2>
-        <p class="text-secondary">Recherche, scraping et analyse de prospects B2B</p>
+<!-- Hero -->
+<div class="hero fade-in">
+    <h1>SBT Intelligence Pipeline</h1>
+    <p class="subtitle">Recherche, scraping et analyse de prospects B2B industriels en Europe</p>
+
+    <div class="pipeline-steps">
+        <div class="pipeline-step">
+            <div class="step-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue)">
+                <i class="bi bi-search"></i>
+            </div>
+            <div class="step-label">Recherche</div>
+            <div class="step-desc">DuckDuckGo + classification</div>
+            <div class="pipeline-connector"></div>
+        </div>
+        <div class="pipeline-step">
+            <div class="step-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green)">
+                <i class="bi bi-globe2"></i>
+            </div>
+            <div class="step-label">Scraping</div>
+            <div class="step-desc">Crawl4AI + extraction LLM</div>
+            <div class="pipeline-connector"></div>
+        </div>
+        <div class="pipeline-step">
+            <div class="step-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple)">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div class="step-label">Graphe</div>
+            <div class="step-desc">Neo4j : relations et liens</div>
+            <div class="pipeline-connector"></div>
+        </div>
+        <div class="pipeline-step">
+            <div class="step-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-yellow)">
+                <i class="bi bi-megaphone"></i>
+            </div>
+            <div class="step-label">Marketing</div>
+            <div class="step-desc">Analyse + pitchs personnalisés</div>
+        </div>
     </div>
 </div>
 
 <!-- Stats -->
-<div class="row mb-4 g-3">
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="number text-info">{{ stats.total }}</div>
-            <div class="label">Résultats totaux</div>
+<div class="row mt-4 g-3 fade-in delay-1">
+    <div class="col-6 col-md-3">
+        <div class="card stat-card stat-blue">
+            <div class="number" style="color:var(--accent-blue)">{{ stats.total }}</div>
+            <div class="label">Résultats trouvés</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="number text-warning">{{ stats.pending }}</div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card stat-yellow">
+            <div class="number" style="color:var(--accent-yellow)">{{ stats.pending }}</div>
             <div class="label">En attente</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="number text-success">{{ stats.scraped }}</div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card stat-green">
+            <div class="number" style="color:var(--accent-green)">{{ stats.scraped }}</div>
             <div class="label">Scrapés</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card">
-            <div class="number text-danger">{{ stats.error }}</div>
+    <div class="col-6 col-md-3">
+        <div class="card stat-card stat-red">
+            <div class="number" style="color:var(--accent-red)">{{ stats.error }}</div>
             <div class="label">Erreurs</div>
         </div>
     </div>
 </div>
 
-<!-- Contrôle Pipeline -->
-<div class="row g-3 mb-4">
+<!-- Orchestrator CTA -->
+<div class="orch-cta mt-4 fade-in delay-1">
+    <div class="orch-icon"><i class="bi bi-play-circle"></i></div>
+    <div class="orch-info">
+        <h4>Pipeline complet (Orchestrator)</h4>
+        <p>Exécute Searcher → Scrapper → Marketing en séquence via LangGraph</p>
+    </div>
+    <div class="orch-status" id="orch-status"></div>
+    <button class="btn-orchestrator" id="btn-orch" onclick="launchOrchestrator()">
+        <i class="bi bi-rocket-takeoff me-2"></i>Tout lancer
+    </button>
+    <div class="orch-progress" id="orch-progress" style="width:0%"></div>
+</div>
+
+<!-- Agents -->
+<h4 class="mt-5 mb-3 fw-bold fade-in delay-1" style="font-size:1.1rem;letter-spacing:-0.3px">
+    <i class="bi bi-cpu me-2" style="color:var(--accent-purple)"></i>Agents du pipeline (individuels)
+</h4>
+<div class="row g-3 fade-in delay-2">
     <div class="col-md-4">
-        <div class="card p-3">
-            <h5><i class="bi bi-search"></i> Target Searcher</h5>
-            <p class="text-secondary small mb-2">Recherche DDG + classification hybride</p>
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-outline-info btn-pipeline" onclick="runAgent('searcher', {max_per_query: 5})">
-                    <i class="bi bi-play-fill"></i> Lancer
+        <div class="card agent-card">
+            <div class="agent-icon" style="background:rgba(59,130,246,0.12);color:var(--accent-blue)">
+                <i class="bi bi-search"></i>
+            </div>
+            <h5>Target Searcher</h5>
+            <div class="desc">Recherche DDG + classification hybride (embedding + LLM) + déduplication intelligente.</div>
+            <div class="agent-footer">
+                <button class="btn btn-sm btn-outline-primary btn-pipeline" onclick="runAgent('searcher', {max_per_query: 5})">
+                    <i class="bi bi-play-fill me-1"></i>Lancer
                 </button>
                 <span id="status-searcher" class="small text-secondary">Prêt</span>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card p-3">
-            <h5><i class="bi bi-globe"></i> Scrapper Agent</h5>
-            <p class="text-secondary small mb-2">Crawl + extraction LLM + Neo4j</p>
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-outline-success btn-pipeline" onclick="runAgent('scrapper', {limit: 20})">
-                    <i class="bi bi-play-fill"></i> Lancer
+        <div class="card agent-card">
+            <div class="agent-icon" style="background:rgba(16,185,129,0.12);color:var(--accent-green)">
+                <i class="bi bi-globe2"></i>
+            </div>
+            <h5>Scrapper Agent</h5>
+            <div class="desc">Crawl multi-pages + extraction LLM + sauvegarde Neo4j + embeddings + relations.</div>
+            <div class="agent-footer">
+                <button class="btn btn-sm btn-outline-success btn-pipeline" onclick="runAgent('scrapper', {limit: 20})">
+                    <i class="bi bi-play-fill me-1"></i>Lancer
                 </button>
                 <span id="status-scrapper" class="small text-secondary">Prêt</span>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card p-3">
-            <h5><i class="bi bi-bar-chart-line"></i> Marketing Agent</h5>
-            <p class="text-secondary small mb-2">Analyse prospects + plan de ciblage</p>
-            <div class="d-flex align-items-center gap-2">
-                <button class="btn btn-outline-warning btn-pipeline" onclick="runAgent('marketing')">
-                    <i class="bi bi-play-fill"></i> Lancer
+        <div class="card agent-card">
+            <div class="agent-icon" style="background:rgba(245,158,11,0.12);color:var(--accent-yellow)">
+                <i class="bi bi-bar-chart-line"></i>
+            </div>
+            <h5>Marketing Agent</h5>
+            <div class="desc">Analyse des prospects + plan de ciblage + pitchs personnalisés par entreprise.</div>
+            <div class="agent-footer">
+                <button class="btn btn-sm btn-outline-warning btn-pipeline" onclick="runAgent('marketing')">
+                    <i class="bi bi-play-fill me-1"></i>Lancer
                 </button>
                 <span id="status-marketing" class="small text-secondary">Prêt</span>
             </div>
@@ -77,25 +353,133 @@
     </div>
 </div>
 
-<!-- Accès rapide -->
-<div class="row g-3">
+<!-- Quick links -->
+<h4 class="mt-5 mb-3 fw-bold fade-in delay-2" style="font-size:1.1rem;letter-spacing:-0.3px">
+    <i class="bi bi-lightning me-2" style="color:var(--accent-yellow)"></i>Accès rapide
+</h4>
+<div class="row g-3 fade-in delay-3">
     <div class="col-md-4">
-        <a href="/dashboard" class="card p-4 text-decoration-none" style="cursor:pointer">
-            <h5 class="text-info"><i class="bi bi-table"></i> Dashboard</h5>
-            <p class="text-secondary small mb-0">Voir toutes les entreprises et statuts</p>
+        <a href="/dashboard" class="card quicklink">
+            <div class="ql-icon" style="background:rgba(59,130,246,0.12);color:var(--accent-blue)">
+                <i class="bi bi-grid-1x2"></i>
+            </div>
+            <div>
+                <h6>Dashboard</h6>
+                <p>Entreprises, statuts et filtres</p>
+            </div>
+            <i class="bi bi-chevron-right ql-arrow"></i>
         </a>
     </div>
     <div class="col-md-4">
-        <a href="/graph" class="card p-4 text-decoration-none" style="cursor:pointer">
-            <h5 class="text-success"><i class="bi bi-bezier2"></i> Graphe Neo4j</h5>
-            <p class="text-secondary small mb-0">Visualiser les relations entre entreprises</p>
+        <a href="/graph" class="card quicklink">
+            <div class="ql-icon" style="background:rgba(16,185,129,0.12);color:var(--accent-green)">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div>
+                <h6>Graphe Neo4j</h6>
+                <p>Relations entre entreprises</p>
+            </div>
+            <i class="bi bi-chevron-right ql-arrow"></i>
         </a>
     </div>
     <div class="col-md-4">
-        <a href="/marketing" class="card p-4 text-decoration-none" style="cursor:pointer">
-            <h5 class="text-warning"><i class="bi bi-megaphone"></i> Marketing</h5>
-            <p class="text-secondary small mb-0">Analyses et plan de ciblage</p>
+        <a href="/marketing" class="card quicklink">
+            <div class="ql-icon" style="background:rgba(245,158,11,0.12);color:var(--accent-yellow)">
+                <i class="bi bi-megaphone"></i>
+            </div>
+            <div>
+                <h6>Marketing</h6>
+                <p>Analyses et pitchs commerciaux</p>
+            </div>
+            <i class="bi bi-chevron-right ql-arrow"></i>
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ORCH_STEPS = {
+    '': { label: '', progress: 0 },
+    'target_searcher': { label: 'Recherche en cours...', progress: 25 },
+    'scrapper': { label: 'Scraping en cours...', progress: 55 },
+    'marketing': { label: 'Analyse marketing...', progress: 80 },
+    'done': { label: 'Pipeline terminé !', progress: 100 },
+};
+
+function launchOrchestrator() {
+    const btn = document.getElementById('btn-orch');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>En cours...';
+
+    fetch('/api/run/orchestrator', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ max_per_query: 5, limit: 20 })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.error) {
+            showToast(d.error, 'warning');
+            resetOrchBtn();
+            return;
+        }
+        showToast('Pipeline orchestrator lancé', 'success');
+        pollOrchestrator();
+    })
+    .catch(e => {
+        showToast('Erreur: ' + e, 'error');
+        resetOrchBtn();
+    });
+}
+
+let _orchInterval = null;
+function pollOrchestrator() {
+    if (_orchInterval) clearInterval(_orchInterval);
+    _orchInterval = setInterval(() => {
+        fetch('/api/status').then(r => r.json()).then(data => {
+            const orch = data.orchestrator;
+            if (!orch) return;
+
+            const step = orch.step || '';
+            const info = ORCH_STEPS[step] || ORCH_STEPS[''];
+            const statusEl = document.getElementById('orch-status');
+            const progressEl = document.getElementById('orch-progress');
+
+            if (orch.running) {
+                statusEl.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>${info.label}`;
+                progressEl.style.width = info.progress + '%';
+            } else if (step === 'done') {
+                clearInterval(_orchInterval);
+                _orchInterval = null;
+                statusEl.innerHTML = '<i class="bi bi-check-circle me-1"></i>Terminé';
+                statusEl.style.color = 'var(--accent-green)';
+                progressEl.style.width = '100%';
+                progressEl.style.background = 'var(--accent-green)';
+                showToast('Pipeline terminé avec succès !', 'success');
+                resetOrchBtn();
+                setTimeout(() => {
+                    statusEl.innerHTML = '';
+                    statusEl.style.color = '';
+                    progressEl.style.width = '0%';
+                    progressEl.style.background = '';
+                }, 8000);
+            } else if (!orch.running && orch.message && orch.message.includes('Erreur')) {
+                clearInterval(_orchInterval);
+                _orchInterval = null;
+                statusEl.innerHTML = '<i class="bi bi-x-circle me-1"></i>' + orch.message;
+                statusEl.style.color = 'var(--accent-red)';
+                showToast('Pipeline terminé avec erreur', 'error');
+                resetOrchBtn();
+            }
+        }).catch(() => {});
+    }, 4000);
+}
+
+function resetOrchBtn() {
+    const btn = document.getElementById('btn-orch');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-rocket-takeoff me-2"></i>Tout lancer';
+}
+</script>
 {% endblock %}

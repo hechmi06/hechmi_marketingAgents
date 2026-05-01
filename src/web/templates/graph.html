@@ -4,48 +4,171 @@
 {% block extra_head %}
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <style>
-    #graph-container { width: 100%; height: calc(100vh - 200px); border: 1px solid #30363d; border-radius: 12px; background: #0d1117; }
-    #legend { position: absolute; top: 10px; right: 10px; background: rgba(22,27,34,0.9); border: 1px solid #30363d; border-radius: 8px; padding: 12px; z-index: 10; }
-    .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 0.8rem; }
-    .legend-dot { width: 14px; height: 14px; border-radius: 50%; }
-    .legend-line { width: 20px; height: 3px; border-radius: 2px; }
-    .graph-stats { font-size: 0.85rem; }
+    #graph-container {
+        width: 100%;
+        height: calc(100vh - 180px);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--bg-primary);
+        position: relative;
+    }
+
+    .graph-toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .graph-toolbar .btn { font-size: 0.8rem; }
+
+    #legend {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(26,31,46,0.95);
+        backdrop-filter: blur(8px);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px 20px;
+        z-index: 10;
+        font-size: 0.78rem;
+        min-width: 180px;
+    }
+
+    .legend-title {
+        font-weight: 700;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 10px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+        color: var(--text-primary);
+    }
+
+    .legend-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+    .legend-line { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+    .legend-sep {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 10px 0;
+    }
+
+    .graph-info {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        background: rgba(26,31,46,0.95);
+        backdrop-filter: blur(8px);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        z-index: 10;
+    }
+
+    .graph-info strong { color: var(--text-primary); }
+
+    .modal-content {
+        background: var(--bg-card);
+        border-color: var(--border);
+        border-radius: 16px;
+    }
+
+    .modal-header { border-color: var(--border); }
+    .modal-body { padding: 20px; }
+
+    .node-detail-row {
+        display: flex;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(42,48,65,0.5);
+        font-size: 0.88rem;
+    }
+
+    .node-detail-row:last-child { border-bottom: none; }
+    .node-detail-label { width: 100px; color: var(--text-secondary); font-weight: 600; flex-shrink: 0; }
+    .node-detail-value { color: var(--text-primary); word-break: break-all; }
+
+    .loading-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10,14,23,0.8);
+        z-index: 20;
+        border-radius: 16px;
+        gap: 12px;
+    }
+
+    .loading-overlay .spinner-border { width: 2rem; height: 2rem; color: var(--accent-blue); }
+    .loading-overlay span { font-size: 0.85rem; color: var(--text-secondary); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h3><i class="bi bi-bezier2"></i> Graphe Neo4j</h3>
+<!-- Header -->
+<div class="page-header d-flex justify-content-between align-items-start">
+    <div>
+        <h2><i class="bi bi-diagram-3 me-2" style="color:var(--accent-green)"></i>Graphe Neo4j</h2>
+        <p>Visualisation des relations entre entreprises</p>
     </div>
-    <div class="col-auto d-flex gap-2 align-items-center">
-        <span class="graph-stats text-secondary" id="graph-stats">Chargement...</span>
-        <button class="btn btn-sm btn-outline-secondary" onclick="loadGraph()"><i class="bi bi-arrow-clockwise"></i> Rafraîchir</button>
-        <button class="btn btn-sm btn-outline-info" onclick="network.fit()"><i class="bi bi-fullscreen"></i> Recentrer</button>
+    <div class="graph-toolbar">
+        <button class="btn btn-sm btn-outline-secondary btn-pipeline" onclick="loadGraph()">
+            <i class="bi bi-arrow-clockwise me-1"></i>Rafraîchir
+        </button>
+        <button class="btn btn-sm btn-outline-primary btn-pipeline" onclick="network && network.fit()">
+            <i class="bi bi-fullscreen me-1"></i>Recentrer
+        </button>
+        <button class="btn btn-sm btn-outline-info btn-pipeline" onclick="togglePhysics()">
+            <i class="bi bi-snow me-1"></i><span id="physics-label">Figer</span>
+        </button>
     </div>
 </div>
 
 <div style="position:relative">
-    <div id="graph-container"></div>
+    <div id="graph-container">
+        <div class="loading-overlay" id="graph-loading">
+            <div class="spinner-border"></div>
+            <span>Chargement du graphe...</span>
+        </div>
+    </div>
+
     <div id="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#4CAF50"></div> Tier 1 — Fabricants</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#2196F3"></div> Tier 2 — Sous-traitants</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#9E9E9E"></div> Découvert</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#FF9800;transform:rotate(45deg);border-radius:2px"></div> Noeud Tier</div>
-        <hr style="border-color:#30363d;margin:6px 0">
-        <div class="legend-item"><div class="legend-line" style="background:#FF9800"></div> BELONGS_TO</div>
-        <div class="legend-item"><div class="legend-line" style="background:#9C27B0"></div> MENTIONS</div>
-        <div class="legend-item"><div class="legend-line" style="background:#F44336"></div> SUPPLIES</div>
-        <div class="legend-item"><div class="legend-line" style="background:#607D8B;border-style:dashed"></div> POTENTIAL_SUPPLIER</div>
+        <div class="legend-title">Noeuds</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-green)"></div> Tier 1 — Fabricants</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-blue)"></div> Tier 2 — Sous-traitants</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div> Découvert</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent-yellow);transform:rotate(45deg);border-radius:3px"></div> Noeud Tier</div>
+        <hr class="legend-sep">
+        <div class="legend-title">Relations</div>
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent-yellow)"></div> BELONGS_TO</div>
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent-purple)"></div> MENTIONS</div>
+        <div class="legend-item"><div class="legend-line" style="background:var(--accent-red)"></div> SUPPLIES</div>
+        <div class="legend-item"><div class="legend-line" style="background:#6b7280;border:1px dashed #6b7280;height:0"></div> POTENTIAL_SUPPLIER</div>
+    </div>
+
+    <div class="graph-info" id="graph-info" style="display:none">
+        <strong id="info-nodes">0</strong> noeuds &bull; <strong id="info-edges">0</strong> relations
     </div>
 </div>
 
-<!-- Détail noeud -->
+<!-- Node detail modal -->
 <div class="modal fade" id="nodeModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content" style="background:#161b22;border-color:#30363d">
-            <div class="modal-header" style="border-color:#30363d">
-                <h5 class="modal-title" id="nodeModalTitle">Entreprise</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="nodeModalTitle">Entreprise</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="nodeModalBody"></div>
@@ -57,46 +180,70 @@
 {% block extra_scripts %}
 <script>
 let network = null;
+let physicsEnabled = true;
+
+function togglePhysics() {
+    physicsEnabled = !physicsEnabled;
+    if (network) network.setOptions({ physics: { enabled: physicsEnabled } });
+    document.getElementById('physics-label').textContent = physicsEnabled ? 'Figer' : 'Animer';
+}
 
 function loadGraph() {
+    const loading = document.getElementById('graph-loading');
+    loading.style.display = 'flex';
+
     fetch('/api/graph-data')
     .then(r => r.json())
     .then(data => {
-        const nodes = new vis.DataSet(data.nodes);
+        loading.style.display = 'none';
+
+        const nodes = new vis.DataSet(data.nodes.map(n => ({
+            ...n,
+            font: { color: '#f1f5f9', size: 13, face: 'Inter, sans-serif' },
+            borderWidth: 2,
+            shadow: { enabled: true, color: 'rgba(0,0,0,0.3)', size: 8 },
+        })));
+
+        const edgeColors = {
+            'BELONGS_TO': '#f59e0b',
+            'MENTIONS': '#8b5cf6',
+            'SUPPLIES': '#ef4444',
+            'POTENTIAL_SUPPLIER': '#6b7280',
+        };
+
         const edges = new vis.DataSet(data.edges.map(e => ({
             ...e,
-            arrows: 'to',
-            font: { size: 9, color: '#8b949e', strokeWidth: 0 },
+            arrows: { to: { enabled: true, scaleFactor: 0.7 } },
+            color: { color: edgeColors[e.label] || '#4a5568', opacity: 0.7, highlight: edgeColors[e.label] || '#4a5568' },
+            font: { size: 8, color: '#94a3b8', strokeWidth: 0, face: 'Inter, sans-serif' },
             smooth: { type: 'curvedCW', roundness: 0.2 },
+            width: e.label === 'SUPPLIES' ? 2.5 : 1.5,
+            dashes: e.label === 'POTENTIAL_SUPPLIER' ? [6, 4] : false,
         })));
 
         const container = document.getElementById('graph-container');
         const options = {
             nodes: {
-                font: { color: '#e0e0e0', size: 13 },
+                shape: 'dot',
+                size: 18,
+                font: { color: '#f1f5f9', size: 13 },
                 borderWidth: 2,
                 shadow: true,
             },
-            edges: {
-                width: 1.5,
-                shadow: false,
-            },
+            edges: { width: 1.5, shadow: false },
             physics: {
-                barnesHut: { gravitationalConstant: -3000, springLength: 150, damping: 0.3 },
-                stabilization: { iterations: 150 },
+                enabled: physicsEnabled,
+                barnesHut: { gravitationalConstant: -3000, springLength: 160, damping: 0.3, centralGravity: 0.2 },
+                stabilization: { iterations: 200 },
             },
-            interaction: {
-                hover: true,
-                tooltipDelay: 100,
-            },
+            interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true },
         };
 
         network = new vis.Network(container, { nodes, edges }, options);
 
         network.on('click', function(params) {
             if (params.nodes.length > 0) {
-                const nodeId = params.nodes[0];
-                const node = nodes.get(nodeId);
+                const node = nodes.get(params.nodes[0]);
                 if (node && node.title) {
                     document.getElementById('nodeModalTitle').textContent = node.label;
                     document.getElementById('nodeModalBody').innerHTML = node.title;
@@ -105,12 +252,16 @@ function loadGraph() {
             }
         });
 
-        const nNodes = data.nodes.length;
-        const nEdges = data.edges.length;
-        document.getElementById('graph-stats').textContent = `${nNodes} noeuds / ${nEdges} relations`;
+        network.on('stabilizationIterationsDone', () => {
+            network.setOptions({ physics: { stabilization: { enabled: false } } });
+        });
+
+        document.getElementById('info-nodes').textContent = data.nodes.length;
+        document.getElementById('info-edges').textContent = data.edges.length;
+        document.getElementById('graph-info').style.display = '';
     })
     .catch(e => {
-        document.getElementById('graph-stats').textContent = 'Erreur chargement';
+        loading.innerHTML = `<i class="bi bi-exclamation-triangle" style="font-size:2rem;color:var(--accent-red)"></i><span>Erreur de chargement du graphe</span>`;
         console.error(e);
     });
 }

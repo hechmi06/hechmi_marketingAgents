@@ -1,48 +1,174 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — SBT Pipeline{% endblock %}
 
+{% block extra_head %}
+<style>
+    .filter-group {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-chip {
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+    }
+
+    .filter-chip:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+    .filter-chip.active { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+    .filter-chip.active-warning { background: var(--accent-yellow); border-color: var(--accent-yellow); color: #000; }
+    .filter-chip.active-success { background: var(--accent-green); border-color: var(--accent-green); color: #fff; }
+    .filter-chip.active-danger { background: var(--accent-red); border-color: var(--accent-red); color: #fff; }
+
+    .search-box {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        border-radius: 10px;
+        padding: 8px 14px 8px 36px;
+        font-size: 0.85rem;
+        width: 250px;
+        transition: border-color 0.2s;
+    }
+
+    .search-box:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
+    .search-wrapper {
+        position: relative;
+    }
+
+    .search-wrapper i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+
+    .result-row { cursor: default; }
+    .result-row:hover { background: rgba(59,130,246,0.04) !important; }
+
+    .tier-badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-weight: 700;
+    }
+
+    .domain-link {
+        color: var(--accent-blue);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .domain-link:hover { text-decoration: underline; }
+
+    .score-bar {
+        width: 50px;
+        height: 5px;
+        background: var(--bg-secondary);
+        border-radius: 3px;
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .score-bar-fill { height: 100%; border-radius: 3px; }
+
+    .table-count {
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    @keyframes fadeInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .fade-in { animation: fadeInUp 0.4s ease both; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h3><i class="bi bi-table"></i> Dashboard</h3>
+<!-- Header -->
+<div class="page-header d-flex justify-content-between align-items-start fade-in">
+    <div>
+        <h2><i class="bi bi-grid-1x2 me-2" style="color:var(--accent-blue)"></i>Dashboard</h2>
+        <p>Vue d'ensemble des résultats de recherche</p>
     </div>
-    <div class="col-auto">
-        <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
-            <i class="bi bi-arrow-clockwise"></i> Rafraîchir
-        </button>
-    </div>
+    <button class="btn btn-sm btn-outline-secondary btn-pipeline" onclick="location.reload()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Rafraîchir
+    </button>
 </div>
 
 <!-- Stats bar -->
-<div class="row mb-4 g-2">
-    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-info">{{ stats.total }}</div><div class="label">Total</div></div></div>
-    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-warning">{{ stats.pending }}</div><div class="label">Pending</div></div></div>
-    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-success">{{ stats.scraped }}</div><div class="label">Scraped</div></div></div>
-    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-danger">{{ stats.error }}</div><div class="label">Erreurs</div></div></div>
-    <div class="col"><div class="card stat-card py-2"><div class="number fs-4 text-primary">{{ stats.raw_companies }}</div><div class="label">Raw Co.</div></div></div>
-</div>
-
-<!-- Filtres -->
-<div class="card mb-3">
-    <div class="card-body py-2">
-        <div class="d-flex gap-2 align-items-center">
-            <span class="text-secondary small">Filtre :</span>
-            <button class="btn btn-sm btn-outline-light filter-btn active" data-filter="all">Tous</button>
-            <button class="btn btn-sm btn-outline-warning filter-btn" data-filter="pending">Pending</button>
-            <button class="btn btn-sm btn-outline-success filter-btn" data-filter="scraped">Scraped</button>
-            <button class="btn btn-sm btn-outline-danger filter-btn" data-filter="error">Error</button>
-            <input type="text" class="form-control form-control-sm ms-auto" id="search-input"
-                   placeholder="Rechercher..." style="max-width:250px;background:#0f1117;border-color:#30363d;color:#e0e0e0">
+<div class="row mb-4 g-3 fade-in">
+    <div class="col-6 col-lg">
+        <div class="card stat-card stat-blue">
+            <div class="number" style="color:var(--accent-blue);font-size:1.8rem">{{ stats.total }}</div>
+            <div class="label">Total</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card stat-card stat-yellow">
+            <div class="number" style="color:var(--accent-yellow);font-size:1.8rem">{{ stats.pending }}</div>
+            <div class="label">Pending</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card stat-card stat-green">
+            <div class="number" style="color:var(--accent-green);font-size:1.8rem">{{ stats.scraped }}</div>
+            <div class="label">Scraped</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card stat-card stat-red">
+            <div class="number" style="color:var(--accent-red);font-size:1.8rem">{{ stats.error }}</div>
+            <div class="label">Erreurs</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card stat-card" style="border-top:3px solid var(--accent-purple)">
+            <div class="number" style="color:var(--accent-purple);font-size:1.8rem">{{ stats.raw_companies }}</div>
+            <div class="label">Entreprises</div>
         </div>
     </div>
 </div>
 
-<!-- Tableau -->
-<div class="card">
+<!-- Filters + Search -->
+<div class="card mb-3 fade-in">
+    <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="filter-group">
+            <span class="small text-secondary me-1">Filtre :</span>
+            <button class="filter-chip active" data-filter="all">Tous</button>
+            <button class="filter-chip" data-filter="pending" data-active-class="active-warning">Pending</button>
+            <button class="filter-chip" data-filter="scraped" data-active-class="active-success">Scraped</button>
+            <button class="filter-chip" data-filter="error" data-active-class="active-danger">Error</button>
+        </div>
+        <div class="search-wrapper">
+            <i class="bi bi-search"></i>
+            <input type="text" class="search-box" id="search-input" placeholder="Rechercher un domaine...">
+        </div>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card fade-in">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul me-2"></i>Résultats de recherche</span>
+        <span class="table-count" id="row-count">{{ results|length }} entrées</span>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0" id="results-table">
             <thead>
                 <tr>
+                    <th>#</th>
                     <th>Domaine</th>
                     <th>Titre</th>
                     <th>Tier</th>
@@ -54,56 +180,89 @@
             <tbody>
                 {% for r in results %}
                 <tr class="result-row" data-status="{{ r.status }}">
-                    <td><a href="{{ r.url }}" target="_blank" class="text-info text-decoration-none">{{ r.domain }}</a></td>
-                    <td class="text-truncate" style="max-width:300px" title="{{ r.title }}">{{ r.title }}</td>
+                    <td class="small text-secondary">{{ loop.index }}</td>
+                    <td>
+                        <a href="{{ r.url }}" target="_blank" class="domain-link">
+                            <i class="bi bi-box-arrow-up-right me-1" style="font-size:0.7rem"></i>{{ r.domain }}
+                        </a>
+                    </td>
+                    <td class="text-truncate" style="max-width:280px" title="{{ r.title }}">{{ r.title }}</td>
                     <td>
                         {% if r.tier_final == 1 %}
-                            <span class="badge bg-success">T1</span>
+                            <span class="tier-badge" style="background:rgba(16,185,129,0.15);color:var(--accent-green)">Tier 1</span>
                         {% elif r.tier_final == 2 %}
-                            <span class="badge bg-primary">T2</span>
+                            <span class="tier-badge" style="background:rgba(59,130,246,0.15);color:var(--accent-blue)">Tier 2</span>
                         {% else %}
-                            <span class="badge bg-secondary">?</span>
+                            <span class="tier-badge" style="background:rgba(148,163,184,0.1);color:var(--text-secondary)">?</span>
                         {% endif %}
                     </td>
-                    <td>{{ r.score }}</td>
+                    <td>
+                        {% if r.score %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width:{{ (r.score * 100)|int }}%;background:{% if r.score > 0.7 %}var(--accent-green){% elif r.score > 0.5 %}var(--accent-yellow){% else %}var(--accent-red){% endif %}"></div>
+                            </div>
+                            <span class="small text-secondary">{{ '%.0f'|format(r.score * 100) }}%</span>
+                        </div>
+                        {% else %}
+                        <span class="text-secondary">-</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if r.status == 'pending' %}
-                            <span class="badge badge-pending">pending</span>
+                            <span class="badge badge-pending"><i class="bi bi-clock me-1"></i>pending</span>
                         {% elif r.status == 'scraped' %}
-                            <span class="badge badge-scraped">scraped</span>
+                            <span class="badge badge-scraped"><i class="bi bi-check-circle me-1"></i>scraped</span>
                         {% elif r.status == 'error' %}
-                            <span class="badge badge-error">error</span>
+                            <span class="badge badge-error"><i class="bi bi-x-circle me-1"></i>error</span>
                         {% else %}
-                            <span class="badge bg-secondary">{{ r.status }}</span>
+                            <span class="badge" style="background:rgba(148,163,184,0.1);color:var(--text-secondary)">{{ r.status }}</span>
                         {% endif %}
                     </td>
-                    <td class="small text-secondary">{{ r.source }}</td>
+                    <td class="small text-secondary" style="max-width:200px" title="{{ r.source }}">{{ r.source|truncate(40) if r.source else '-' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    {% if not results %}
+    <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <p>Aucun résultat. Lancez d'abord le Target Searcher depuis l'accueil.</p>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-document.querySelectorAll('.filter-btn').forEach(btn => {
+document.querySelectorAll('.filter-chip').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const filter = btn.dataset.filter;
-        document.querySelectorAll('.result-row').forEach(row => {
-            row.style.display = (filter === 'all' || row.dataset.status === filter) ? '' : 'none';
+        document.querySelectorAll('.filter-chip').forEach(b => {
+            b.classList.remove('active', 'active-warning', 'active-success', 'active-danger');
         });
+        const activeClass = btn.dataset.activeClass || 'active';
+        btn.classList.add(activeClass);
+        const filter = btn.dataset.filter;
+        let visible = 0;
+        document.querySelectorAll('.result-row').forEach(row => {
+            const show = filter === 'all' || row.dataset.status === filter;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        document.getElementById('row-count').textContent = visible + ' entrées';
     });
 });
 
 document.getElementById('search-input').addEventListener('input', function() {
     const q = this.value.toLowerCase();
+    let visible = 0;
     document.querySelectorAll('.result-row').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        const show = row.textContent.toLowerCase().includes(q);
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
     });
+    document.getElementById('row-count').textContent = visible + ' entrées';
 });
 </script>
 {% endblock %}

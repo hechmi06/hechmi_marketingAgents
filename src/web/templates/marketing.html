@@ -1,240 +1,628 @@
 {% extends "base.html" %}
 {% block title %}Marketing — SBT Pipeline{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Tabs navigation */
+    .mkt-tabs {
+        display: flex;
+        gap: 4px;
+        background: var(--bg-secondary);
+        padding: 4px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+    }
+
+    .mkt-tab {
+        flex: 1;
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .mkt-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.03); }
+
+    .mkt-tab.active {
+        background: var(--bg-card);
+        color: var(--text-primary);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .mkt-tab .tab-badge {
+        font-size: 0.68rem;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-weight: 700;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Tier cards */
+    .tier-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .tier-header h5 { margin: 0; font-size: 0.95rem; font-weight: 700; }
+
+    .tier-badge-count {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .company-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 18px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transition: all 0.15s;
+    }
+
+    .company-card:hover { border-color: rgba(59,130,246,0.3); background: var(--bg-card-hover); }
+
+    .company-avatar {
+        width: 38px; height: 38px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 0.85rem;
+        flex-shrink: 0;
+        text-transform: uppercase;
+    }
+
+    .company-info { flex: 1; min-width: 0; }
+    .company-info .name { font-weight: 600; font-size: 0.88rem; color: var(--text-primary); }
+    .company-info .name a { color: var(--accent-blue); text-decoration: none; }
+    .company-info .name a:hover { text-decoration: underline; }
+    .company-info .meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .confidence-pill {
+        font-size: 0.7rem;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    /* Pagination */
+    .pagination-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        margin-top: 8px;
+    }
+
+    .pagination-bar .page-info { font-size: 0.78rem; color: var(--text-secondary); }
+
+    .pagination-btns { display: flex; gap: 4px; }
+
+    .page-btn {
+        width: 32px; height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .page-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+    .page-btn.active { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Priority cards */
+    .priority-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 12px;
+        border-left: 4px solid transparent;
+        transition: all 0.15s;
+    }
+
+    .priority-card:hover { border-color: rgba(59,130,246,0.2); border-left-color: inherit !important; }
+    .priority-card.p-high { border-left-color: var(--accent-red); }
+    .priority-card.p-medium { border-left-color: var(--accent-yellow); }
+    .priority-card.p-low { border-left-color: var(--text-secondary); }
+
+    .priority-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+
+    .priority-badge {
+        font-size: 0.68rem;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .priority-companies {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: var(--text-primary);
+        margin-bottom: 10px;
+    }
+
+    .priority-action {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 14px;
+        background: rgba(59,130,246,0.06);
+        border-radius: 8px;
+        margin-bottom: 6px;
+        font-size: 0.82rem;
+        color: var(--accent-blue);
+    }
+
+    .priority-message {
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        padding: 0 14px;
+        font-style: italic;
+    }
+
+    .advice-box {
+        background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(59,130,246,0.06));
+        border: 1px solid rgba(245,158,11,0.2);
+        border-radius: 14px;
+        padding: 18px 22px;
+        font-size: 0.88rem;
+        color: var(--text-primary);
+        margin-top: 16px;
+        line-height: 1.6;
+    }
+
+    /* Pitch cards */
+    .pitch-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        transition: all 0.15s;
+    }
+
+    .pitch-card:hover { border-color: rgba(139,92,246,0.3); }
+
+    .pitch-header {
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .pitch-header:hover { background: rgba(255,255,255,0.02); }
+
+    .pitch-chevron {
+        color: var(--text-secondary);
+        transition: transform 0.2s;
+        margin-left: auto;
+    }
+
+    .pitch-card.open .pitch-chevron { transform: rotate(180deg); }
+
+    .pitch-body {
+        display: none;
+        padding: 0 20px 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .pitch-card.open .pitch-body { display: block; animation: fadeIn 0.3s ease; }
+
+    .pitch-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        margin-top: 14px;
+    }
+
+    .pitch-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .pitch-section-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .pitch-text {
+        white-space: pre-wrap;
+        font-size: 0.85rem;
+        line-height: 1.7;
+        color: var(--text-primary);
+    }
+
+    .copy-btn {
+        font-size: 0.72rem;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+
+    .copy-btn.copied { background: var(--accent-green) !important; border-color: var(--accent-green) !important; color: #fff !important; }
+
+    .company-name-pitch { font-weight: 700; font-size: 0.92rem; }
+
+    @keyframes fadeInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .fade-in { animation: fadeInUp 0.4s ease both; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h3><i class="bi bi-megaphone"></i> Analyse Marketing</h3>
+<!-- Header -->
+<div class="page-header d-flex justify-content-between align-items-start fade-in">
+    <div>
+        <h2><i class="bi bi-megaphone me-2" style="color:var(--accent-yellow)"></i>Analyse Marketing</h2>
+        <p>Prospects, plan de ciblage et pitchs personnalisés</p>
     </div>
-    <div class="col-auto d-flex gap-2 align-items-center">
-        <button class="btn btn-sm btn-outline-warning btn-pipeline" onclick="runAgent('marketing')">
-            <i class="bi bi-play-fill"></i> Lancer l'analyse
-        </button>
+    <div class="d-flex align-items-center gap-3">
         <span id="status-marketing" class="small text-secondary">Prêt</span>
+        <button class="btn btn-sm btn-outline-warning btn-pipeline" onclick="runAgent('marketing')">
+            <i class="bi bi-play-fill me-1"></i>Lancer l'analyse
+        </button>
     </div>
 </div>
 
-<div class="row g-3">
-    <!-- Tier 1 -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-building"></i> Tier 1 — Fabricants coffrets
-                <span class="badge bg-success ms-2">{{ data.tier1|length }}</span>
-            </div>
-            <div class="card-body">
-                {% if data.tier1 %}
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead><tr><th>Nom</th><th>Email</th><th>Pays</th><th>Score</th></tr></thead>
-                        <tbody>
+<!-- Tabs -->
+<div class="mkt-tabs fade-in">
+    <button class="mkt-tab active" onclick="switchTab('prospects')">
+        <i class="bi bi-people"></i> Prospects
+        <span class="tab-badge" style="background:rgba(59,130,246,0.15);color:var(--accent-blue)">{{ (data.tier1|length) + (data.tier2|length) }}</span>
+    </button>
+    <button class="mkt-tab" onclick="switchTab('plan')">
+        <i class="bi bi-bullseye"></i> Plan de ciblage
+    </button>
+    <button class="mkt-tab" onclick="switchTab('pitches')">
+        <i class="bi bi-envelope-paper"></i> Pitchs
+        <span class="tab-badge" style="background:rgba(139,92,246,0.15);color:var(--accent-purple)" id="pitch-count-tab">0</span>
+    </button>
+</div>
+
+<!-- TAB: Prospects -->
+<div class="tab-panel active" id="panel-prospects">
+    <div class="row g-4">
+        <!-- Tier 1 -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="tier-header">
+                        <h5><i class="bi bi-building me-2" style="color:var(--accent-green)"></i>Tier 1 — Fabricants</h5>
+                        <span class="tier-badge-count" style="background:rgba(16,185,129,0.12);color:var(--accent-green)">{{ data.tier1|length }}</span>
+                    </div>
+                    {% if data.tier1 %}
+                    <div id="tier1-list">
                         {% for c in data.tier1 %}
-                        <tr>
-                            <td>
-                                {% if c.website %}
-                                <a href="{{ c.website }}" target="_blank" class="text-info text-decoration-none">{{ c.name }}</a>
-                                {% else %}
-                                {{ c.name }}
-                                {% endif %}
-                            </td>
-                            <td class="small">{{ c.email or '-' }}</td>
-                            <td class="small">{{ c.country or '-' }}</td>
-                            <td>
-                                {% if c.confidence %}
-                                <div class="progress" style="height:6px;width:60px;background:#21262d">
-                                    <div class="progress-bar bg-success" style="width:{{ (c.confidence * 100)|int }}%"></div>
+                        <div class="company-card tier1-item" {% if loop.index > 5 %}style="display:none"{% endif %}>
+                            <div class="company-avatar" style="background:rgba(16,185,129,0.12);color:var(--accent-green)">{{ c.name[:2] }}</div>
+                            <div class="company-info">
+                                <div class="name">
+                                    {% if c.website %}<a href="{{ c.website }}" target="_blank">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %}
                                 </div>
-                                {% endif %}
-                            </td>
-                        </tr>
+                                <div class="meta">
+                                    {% if c.email %}<span><i class="bi bi-envelope me-1"></i>{{ c.email }}</span>{% endif %}
+                                    {% if c.country %}<span><i class="bi bi-geo-alt me-1"></i>{{ c.country }}</span>{% endif %}
+                                </div>
+                            </div>
+                            {% if c.confidence %}
+                            <span class="confidence-pill" style="background:rgba(16,185,129,0.12);color:var(--accent-green)">{{ '%.0f'|format(c.confidence * 100) }}%</span>
+                            {% endif %}
+                        </div>
                         {% endfor %}
-                        </tbody>
-                    </table>
+                    </div>
+                    {% if data.tier1|length > 5 %}
+                    <div class="pagination-bar" id="tier1-pagination">
+                        <span class="page-info">1-5 sur {{ data.tier1|length }}</span>
+                        <div class="pagination-btns">
+                            <button class="page-btn" onclick="paginate('tier1', -1)" id="tier1-prev" disabled><i class="bi bi-chevron-left"></i></button>
+                            <button class="page-btn active" data-page="1">1</button>
+                            {% for p in range(2, ((data.tier1|length - 1) // 5) + 2) %}
+                            <button class="page-btn" data-page="{{ p }}">{{ p }}</button>
+                            {% endfor %}
+                            <button class="page-btn" onclick="paginate('tier1', 1)" id="tier1-next"><i class="bi bi-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="empty-state"><i class="bi bi-building"></i><p>Aucune entreprise Tier 1</p></div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="text-secondary mb-0">Aucune entreprise Tier 1. Lancez d'abord le searcher + scrapper.</p>
-                {% endif %}
             </div>
         </div>
-    </div>
 
-    <!-- Tier 2 -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-gear"></i> Tier 2 — Sous-traitants
-                <span class="badge bg-primary ms-2">{{ data.tier2|length }}</span>
-            </div>
-            <div class="card-body">
-                {% if data.tier2 %}
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead><tr><th>Nom</th><th>Email</th><th>Pays</th><th>Score</th></tr></thead>
-                        <tbody>
+        <!-- Tier 2 -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="tier-header">
+                        <h5><i class="bi bi-gear me-2" style="color:var(--accent-blue)"></i>Tier 2 — Sous-traitants</h5>
+                        <span class="tier-badge-count" style="background:rgba(59,130,246,0.12);color:var(--accent-blue)">{{ data.tier2|length }}</span>
+                    </div>
+                    {% if data.tier2 %}
+                    <div id="tier2-list">
                         {% for c in data.tier2 %}
-                        <tr>
-                            <td>
-                                {% if c.website %}
-                                <a href="{{ c.website }}" target="_blank" class="text-info text-decoration-none">{{ c.name }}</a>
-                                {% else %}
-                                {{ c.name }}
-                                {% endif %}
-                            </td>
-                            <td class="small">{{ c.email or '-' }}</td>
-                            <td class="small">{{ c.country or '-' }}</td>
-                            <td>
-                                {% if c.confidence %}
-                                <div class="progress" style="height:6px;width:60px;background:#21262d">
-                                    <div class="progress-bar bg-primary" style="width:{{ (c.confidence * 100)|int }}%"></div>
+                        <div class="company-card tier2-item" {% if loop.index > 5 %}style="display:none"{% endif %}>
+                            <div class="company-avatar" style="background:rgba(59,130,246,0.12);color:var(--accent-blue)">{{ c.name[:2] }}</div>
+                            <div class="company-info">
+                                <div class="name">
+                                    {% if c.website %}<a href="{{ c.website }}" target="_blank">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %}
                                 </div>
-                                {% endif %}
-                            </td>
-                        </tr>
+                                <div class="meta">
+                                    {% if c.email %}<span><i class="bi bi-envelope me-1"></i>{{ c.email }}</span>{% endif %}
+                                    {% if c.country %}<span><i class="bi bi-geo-alt me-1"></i>{{ c.country }}</span>{% endif %}
+                                </div>
+                            </div>
+                            {% if c.confidence %}
+                            <span class="confidence-pill" style="background:rgba(59,130,246,0.12);color:var(--accent-blue)">{{ '%.0f'|format(c.confidence * 100) }}%</span>
+                            {% endif %}
+                        </div>
                         {% endfor %}
-                        </tbody>
-                    </table>
+                    </div>
+                    {% if data.tier2|length > 5 %}
+                    <div class="pagination-bar" id="tier2-pagination">
+                        <span class="page-info">1-5 sur {{ data.tier2|length }}</span>
+                        <div class="pagination-btns">
+                            <button class="page-btn" onclick="paginate('tier2', -1)" id="tier2-prev" disabled><i class="bi bi-chevron-left"></i></button>
+                            <button class="page-btn active" data-page="1">1</button>
+                            {% for p in range(2, ((data.tier2|length - 1) // 5) + 2) %}
+                            <button class="page-btn" data-page="{{ p }}">{{ p }}</button>
+                            {% endfor %}
+                            <button class="page-btn" onclick="paginate('tier2', 1)" id="tier2-next"><i class="bi bi-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="empty-state"><i class="bi bi-gear"></i><p>Aucune entreprise Tier 2</p></div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="text-secondary mb-0">Aucune entreprise Tier 2. Lancez d'abord le searcher + scrapper.</p>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Section résultats LLM -->
-<div class="row mt-4" id="marketing-results" style="display:none">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-lightbulb"></i> Plan de ciblage (dernière analyse)</div>
-            <div class="card-body" id="targeting-content">
-                <p class="text-secondary">Lancez l'agent marketing pour voir les résultats ici.</p>
+<!-- TAB: Plan de ciblage -->
+<div class="tab-panel" id="panel-plan">
+    <div class="card">
+        <div class="card-body" id="targeting-content">
+            <div class="empty-state">
+                <i class="bi bi-bullseye" style="font-size:2.5rem"></i>
+                <p>Lancez l'agent marketing pour voir le plan de ciblage.</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Section Pitchs personnalisés -->
-<div class="row mt-4" id="pitches-section" style="display:none">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-envelope-paper"></i> Pitchs commerciaux personnalisés
-                <span class="badge bg-warning text-dark ms-2" id="pitch-count">0</span>
-            </div>
-            <div class="card-body p-0" id="pitches-container">
-            </div>
+<!-- TAB: Pitchs -->
+<div class="tab-panel" id="panel-pitches">
+    <div id="pitches-container">
+        <div class="empty-state">
+            <i class="bi bi-envelope-paper" style="font-size:2.5rem"></i>
+            <p>Les pitchs apparaitront ici apres l'analyse marketing.</p>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script>
+// ── Tabs ──────────────────────────────────────────
+function switchTab(name) {
+    document.querySelectorAll('.mkt-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ── Pagination ────────────────────────────────────
+const pageState = { tier1: 1, tier2: 1 };
+const PER_PAGE = 5;
+
+function paginate(tier, dir) {
+    const items = document.querySelectorAll(`.${tier}-item`);
+    const total = items.length;
+    const maxPage = Math.ceil(total / PER_PAGE);
+
+    pageState[tier] = Math.max(1, Math.min(maxPage, pageState[tier] + dir));
+    const page = pageState[tier];
+
+    items.forEach((item, i) => {
+        item.style.display = (i >= (page-1)*PER_PAGE && i < page*PER_PAGE) ? '' : 'none';
+    });
+
+    const pagination = document.getElementById(`${tier}-pagination`);
+    if (!pagination) return;
+    pagination.querySelector('.page-info').textContent = `${(page-1)*PER_PAGE+1}-${Math.min(page*PER_PAGE, total)} sur ${total}`;
+    pagination.querySelectorAll('.page-btn[data-page]').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.page) === page);
+    });
+    document.getElementById(`${tier}-prev`).disabled = page <= 1;
+    document.getElementById(`${tier}-next`).disabled = page >= maxPage;
+}
+
+document.querySelectorAll('.page-btn[data-page]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tier = btn.closest('.pagination-bar').id.replace('-pagination', '');
+        pageState[tier] = parseInt(btn.dataset.page);
+        paginate(tier, 0);
+    });
+});
+
+// ── Pitch toggle ──────────────────────────────────
+function togglePitch(el) {
+    el.closest('.pitch-card').classList.toggle('open');
+}
+
+// ── Marketing agent hook ──────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
     const origRunAgent = window.runAgent;
     if (origRunAgent) {
-        window.runAgent = function(name) {
-            origRunAgent(name);
-            if (name === 'marketing') {
-                pollMarketingResults();
-            }
+        window.runAgent = function(name, params) {
+            origRunAgent(name, params);
+            if (name === 'marketing') pollMarketingResults();
         };
     }
 });
 
+let _mktInterval = null;
 function pollMarketingResults() {
-    const interval = setInterval(async () => {
+    if (_mktInterval) clearInterval(_mktInterval);
+    _mktInterval = setInterval(async () => {
         try {
             const resp = await fetch('/api/status');
             const data = await resp.json();
-            if (!data.marketing_running) {
-                clearInterval(interval);
+            if (!data.marketing || !data.marketing.running) {
+                clearInterval(_mktInterval);
+                _mktInterval = null;
                 loadMarketingResults();
             }
         } catch(e) { }
-    }, 3000);
+    }, 5000);
 }
 
+// ── Helper: safe text ─────────────────────────────
+function safeText(val) {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object') {
+        if (Array.isArray(val)) return val.map(safeText).join(', ');
+        return val.name || val.nom || val.text || JSON.stringify(val);
+    }
+    return String(val);
+}
+
+function safeList(arr) {
+    if (!Array.isArray(arr)) return '';
+    return arr.map(e => safeText(e)).join(', ');
+}
+
+// ── Load results ──────────────────────────────────
 async function loadMarketingResults() {
     try {
         const resp = await fetch('/api/marketing-results');
         if (!resp.ok) return;
         const data = await resp.json();
+        if (!data || Object.keys(data).length === 0) return;
 
+        // Plan de ciblage
         if (data.targeting_plan && Object.keys(data.targeting_plan).length > 0) {
-            const section = document.getElementById('marketing-results');
             const content = document.getElementById('targeting-content');
-            section.style.display = '';
             let html = '';
             for (const key of ['priorité_1', 'priorité_2', 'priorité_3']) {
                 const p = data.targeting_plan[key];
                 if (!p) continue;
-                const badgeClass = key === 'priorité_1' ? 'bg-danger' : key === 'priorité_2' ? 'bg-warning text-dark' : 'bg-secondary';
+                const cls = key === 'priorité_1' ? 'p-high' : key === 'priorité_2' ? 'p-medium' : 'p-low';
+                const icon = key === 'priorité_1' ? 'bi-star-fill' : key === 'priorité_2' ? 'bi-star-half' : 'bi-star';
+                const badgeBg = key === 'priorité_1' ? 'rgba(239,68,68,0.15);color:var(--accent-red)' :
+                                key === 'priorité_2' ? 'rgba(245,158,11,0.15);color:var(--accent-yellow)' :
+                                'rgba(148,163,184,0.12);color:var(--text-secondary)';
                 html += `
-                    <div class="mb-3 p-3" style="background:#161b22;border-radius:8px">
-                        <span class="badge ${badgeClass} mb-1">${key.toUpperCase()}</span>
-                        <div class="fw-bold">${(p.entreprises||[]).join(', ')}</div>
-                        <div class="small text-info mt-1"><i class="bi bi-lightning"></i> ${p.action || ''}</div>
-                        <div class="small text-secondary mt-1"><i class="bi bi-chat-quote"></i> ${p.message_cle || ''}</div>
+                    <div class="priority-card ${cls}">
+                        <div class="priority-header">
+                            <span class="priority-badge" style="background:${badgeBg}"><i class="bi ${icon} me-1"></i>${key.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        <div class="priority-companies">${safeList(p.entreprises)}</div>
+                        <div class="priority-action"><i class="bi bi-lightning-charge"></i> ${safeText(p.action)}</div>
+                        <div class="priority-message"><i class="bi bi-chat-quote me-1"></i>${safeText(p.message_cle)}</div>
                     </div>`;
             }
             if (data.targeting_plan.conseil_global) {
-                html += `<div class="alert alert-info mt-2 mb-0"><i class="bi bi-info-circle"></i> ${data.targeting_plan.conseil_global}</div>`;
+                html += `<div class="advice-box"><i class="bi bi-lightbulb me-2" style="color:var(--accent-yellow)"></i>${safeText(data.targeting_plan.conseil_global)}</div>`;
             }
             content.innerHTML = html;
         }
 
+        // Pitchs
         if (data.pitches && data.pitches.length > 0) {
-            const section = document.getElementById('pitches-section');
             const container = document.getElementById('pitches-container');
-            document.getElementById('pitch-count').textContent = data.pitches.length;
-            section.style.display = '';
+            const countTab = document.getElementById('pitch-count-tab');
+            if (countTab) countTab.textContent = data.pitches.length;
 
-            let html = '<div class="accordion" id="pitchAccordion">';
+            let html = '';
             data.pitches.forEach((pitch, i) => {
-                const priorityBadge = pitch.priority === 'haute'
-                    ? '<span class="badge bg-danger">HAUTE</span>'
-                    : '<span class="badge bg-warning text-dark">MOYENNE</span>';
+                const priBg = pitch.priority === 'haute'
+                    ? 'background:rgba(239,68,68,0.12);color:var(--accent-red)'
+                    : 'background:rgba(245,158,11,0.12);color:var(--accent-yellow)';
+                const tierColor = pitch.tier === 1 ? '--accent-green' : '--accent-blue';
+                const tierBg = pitch.tier === 1
+                    ? 'background:rgba(16,185,129,0.12);color:var(--accent-green)'
+                    : 'background:rgba(59,130,246,0.12);color:var(--accent-blue)';
+
                 html += `
-                <div class="accordion-item" style="background:#0d1117;border-color:#30363d">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button"
-                                data-bs-toggle="collapse" data-bs-target="#pitch-${i}"
-                                style="background:#161b22;color:#e6edf3;border-color:#30363d">
-                            ${priorityBadge}
-                            <span class="badge bg-${pitch.tier===1?'success':'primary'} ms-2">Tier ${pitch.tier}</span>
-                            <span class="ms-2 fw-bold">${pitch.company}</span>
-                            <span class="ms-auto small text-secondary">${pitch.subject || ''}</span>
-                        </button>
-                    </h2>
-                    <div id="pitch-${i}" class="accordion-collapse collapse" data-bs-parent="#pitchAccordion">
-                        <div class="accordion-body" style="background:#0d1117">
-                            <div class="mb-3">
-                                <span class="badge bg-info mb-1">Argument clé</span>
-                                <p class="mb-0">${pitch.key_argument || ''}</p>
+                <div class="pitch-card">
+                    <div class="pitch-header" onclick="togglePitch(this)">
+                        <span class="priority-badge" style="${priBg}">${safeText(pitch.priority)}</span>
+                        <span class="priority-badge" style="${tierBg}">Tier ${pitch.tier}</span>
+                        <span class="company-name-pitch">${safeText(pitch.company)}</span>
+                        <span class="small text-secondary ms-2" style="font-weight:400;flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safeText(pitch.subject)}</span>
+                        <i class="bi bi-chevron-down pitch-chevron"></i>
+                    </div>
+                    <div class="pitch-body">
+                        <div class="pitch-section" style="border-left:3px solid var(--accent-yellow)">
+                            <div class="pitch-section-header">
+                                <span class="pitch-section-label" style="color:var(--accent-yellow)"><i class="bi bi-lightning-charge"></i> Argument clé</span>
                             </div>
-                            <div class="mb-3">
-                                <span class="badge bg-success mb-1"><i class="bi bi-envelope"></i> Email</span>
-                                <div class="p-2 rounded" style="background:#161b22;white-space:pre-wrap;font-size:0.9rem">${pitch.pitch_email || ''}</div>
-                                <button class="btn btn-sm btn-outline-success mt-1" onclick="copyText(this, 'email', ${i})">
-                                    <i class="bi bi-clipboard"></i> Copier l'email
-                                </button>
+                            <div class="pitch-text">${safeText(pitch.key_argument)}</div>
+                        </div>
+
+                        <div class="pitch-section" style="border-left:3px solid var(--accent-green)">
+                            <div class="pitch-section-header">
+                                <span class="pitch-section-label" style="color:var(--accent-green)"><i class="bi bi-envelope"></i> Pitch Email</span>
+                                <button class="btn btn-sm btn-outline-success copy-btn" onclick="copyPitch(this, ${i}, 'email')"><i class="bi bi-clipboard me-1"></i>Copier</button>
                             </div>
-                            <div class="mb-3">
-                                <span class="badge bg-primary mb-1"><i class="bi bi-linkedin"></i> LinkedIn</span>
-                                <div class="p-2 rounded" style="background:#161b22;white-space:pre-wrap;font-size:0.9rem">${pitch.pitch_linkedin || ''}</div>
-                                <button class="btn btn-sm btn-outline-primary mt-1" onclick="copyText(this, 'linkedin', ${i})">
-                                    <i class="bi bi-clipboard"></i> Copier le message
-                                </button>
+                            <div class="pitch-text" id="email-text-${i}">${safeText(pitch.pitch_email)}</div>
+                        </div>
+
+                        <div class="pitch-section" style="border-left:3px solid var(--accent-blue)">
+                            <div class="pitch-section-header">
+                                <span class="pitch-section-label" style="color:var(--accent-blue)"><i class="bi bi-linkedin"></i> Pitch LinkedIn</span>
+                                <button class="btn btn-sm btn-outline-primary copy-btn" onclick="copyPitch(this, ${i}, 'linkedin')"><i class="bi bi-clipboard me-1"></i>Copier</button>
                             </div>
-                            <div>
-                                <span class="badge bg-secondary mb-1"><i class="bi bi-arrow-repeat"></i> Relance</span>
-                                <p class="mb-0 small">${pitch.follow_up || ''}</p>
+                            <div class="pitch-text" id="linkedin-text-${i}">${safeText(pitch.pitch_linkedin)}</div>
+                        </div>
+
+                        <div class="pitch-section" style="border-left:3px solid var(--text-secondary)">
+                            <div class="pitch-section-header">
+                                <span class="pitch-section-label" style="color:var(--text-secondary)"><i class="bi bi-arrow-repeat"></i> Relance</span>
                             </div>
+                            <div class="pitch-text" style="font-size:0.82rem">${safeText(pitch.follow_up)}</div>
                         </div>
                     </div>
                 </div>`;
             });
-            html += '</div>';
             container.innerHTML = html;
         }
     } catch(e) {
@@ -242,19 +630,17 @@ async function loadMarketingResults() {
     }
 }
 
-function copyText(btn, type, idx) {
-    const container = btn.parentElement;
-    const textDiv = container.querySelector('div[style*="pre-wrap"]');
-    if (textDiv) {
-        navigator.clipboard.writeText(textDiv.textContent).then(() => {
-            btn.innerHTML = '<i class="bi bi-check"></i> Copié !';
-            setTimeout(() => {
-                btn.innerHTML = type === 'email'
-                    ? '<i class="bi bi-clipboard"></i> Copier l\'email'
-                    : '<i class="bi bi-clipboard"></i> Copier le message';
-            }, 2000);
-        });
-    }
+function copyPitch(btn, idx, type) {
+    const el = document.getElementById(`${type}-text-${idx}`);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Copié !';
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copier';
+        }, 2000);
+    });
 }
 
 loadMarketingResults();

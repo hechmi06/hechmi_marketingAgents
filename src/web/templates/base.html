@@ -6,46 +6,298 @@
     <title>{% block title %}SBT Pipeline{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bs-body-bg: #0f1117; --bs-body-color: #e0e0e0; }
-        body { background: #0f1117; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        .navbar { background: #161b22 !important; border-bottom: 1px solid #30363d; }
-        .navbar-brand { font-weight: 700; color: #58a6ff !important; }
-        .nav-link { color: #8b949e !important; }
-        .nav-link:hover, .nav-link.active { color: #58a6ff !important; }
-        .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; }
-        .card-header { background: #1c2129; border-bottom: 1px solid #30363d; font-weight: 600; }
-        .stat-card { text-align: center; padding: 1.5rem; }
-        .stat-card .number { font-size: 2.5rem; font-weight: 700; }
-        .stat-card .label { color: #8b949e; font-size: 0.85rem; text-transform: uppercase; }
-        .btn-pipeline { border-radius: 8px; font-weight: 600; padding: 0.6rem 1.5rem; }
-        .badge-pending { background: #d29922; }
-        .badge-scraped { background: #238636; }
-        .badge-error { background: #da3633; }
-        .table { color: #e0e0e0; }
-        .table th { color: #8b949e; font-weight: 600; border-color: #30363d; }
-        .table td { border-color: #21262d; }
-        .spinner-running { color: #58a6ff; }
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a1f2e;
+            --bg-card-hover: #1f2639;
+            --border: #2a3041;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --glow-blue: rgba(59,130,246,0.15);
+            --glow-green: rgba(16,185,129,0.15);
+        }
+
+        * { transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            width: 72px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            z-index: 100;
+        }
+
+        .sidebar-brand {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; font-weight: 800; color: #fff;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .sidebar-link {
+            width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 1.2rem;
+            position: relative;
+        }
+
+        .sidebar-link:hover {
+            background: var(--bg-card);
+            color: var(--accent-blue);
+            transform: scale(1.05);
+        }
+
+        .sidebar-link.active {
+            background: var(--glow-blue);
+            color: var(--accent-blue);
+            box-shadow: inset 3px 0 0 var(--accent-blue);
+        }
+
+        .sidebar-link .tooltip-text {
+            display: none;
+            position: absolute;
+            left: 60px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+            z-index: 200;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .sidebar-link:hover .tooltip-text { display: block; }
+
+        .main-content {
+            margin-left: 72px;
+            padding: 24px 32px;
+            min-height: 100vh;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .card:hover { border-color: #3a4055; }
+
+        .card-header {
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            padding: 14px 20px;
+            font-size: 0.9rem;
+        }
+
+        .card-body { padding: 20px; }
+
+        /* Stat cards */
+        .stat-card {
+            text-align: center;
+            padding: 24px 16px;
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .stat-card.stat-blue::before { background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); }
+        .stat-card.stat-yellow::before { background: var(--accent-yellow); }
+        .stat-card.stat-green::before { background: var(--accent-green); }
+        .stat-card.stat-red::before { background: var(--accent-red); }
+
+        .stat-card .number {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Buttons */
+        .btn-pipeline {
+            border-radius: 10px;
+            font-weight: 600;
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-pipeline:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .btn-pipeline:active { transform: translateY(0); }
+
+        /* Tables */
+        .table { color: var(--text-primary); font-size: 0.88rem; }
+        .table th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-color: var(--border);
+            padding: 12px 16px;
+        }
+        .table td { border-color: rgba(42,48,65,0.5); padding: 12px 16px; vertical-align: middle; }
+        .table tbody tr:hover { background: rgba(59,130,246,0.05); }
+
+        /* Badges */
+        .badge { font-weight: 600; font-size: 0.72rem; letter-spacing: 0.3px; padding: 4px 10px; border-radius: 6px; }
+        .badge-pending { background: rgba(245,158,11,0.15); color: var(--accent-yellow); }
+        .badge-scraped { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .badge-error { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3a4055; }
+
+        /* Toast */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+
+        .toast-item {
+            padding: 14px 22px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            animation: slideInRight 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            to { transform: translateX(50px); opacity: 0; }
+        }
+
+        /* Page title */
+        .page-header { margin-bottom: 28px; }
+        .page-header h2 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .page-header p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0; }
+
+        /* Glow effects */
+        .glow-blue { box-shadow: 0 0 20px var(--glow-blue); }
+        .glow-green { box-shadow: 0 0 20px var(--glow-green); }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-secondary);
+        }
+        .empty-state i { font-size: 3rem; margin-bottom: 16px; display: block; opacity: 0.3; }
+        .empty-state p { font-size: 0.9rem; }
+
+        /* Progress bar */
+        .progress { background: var(--bg-secondary); border-radius: 6px; }
+
+        /* Spinner */
+        .spinner-running { color: var(--accent-blue); }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { width: 56px; }
+            .sidebar-brand { width: 36px; height: 36px; font-size: 1rem; }
+            .sidebar-link { width: 36px; height: 36px; }
+            .main-content { margin-left: 56px; padding: 16px; }
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/"><i class="bi bi-diagram-3"></i> SBT Pipeline</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Accueil</a>
-                <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a>
-                <a class="nav-link {% if request.path == '/graph' %}active{% endif %}" href="/graph">Graphe</a>
-                <a class="nav-link {% if request.path == '/marketing' %}active{% endif %}" href="/marketing">Marketing</a>
-            </div>
-        </div>
-    </nav>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <a href="/" class="sidebar-brand text-decoration-none">S</a>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link {% if request.path == '/' %}active{% endif %}">
+                <i class="bi bi-house-door"></i>
+                <span class="tooltip-text">Accueil</span>
+            </a>
+            <a href="/dashboard" class="sidebar-link {% if request.path == '/dashboard' %}active{% endif %}">
+                <i class="bi bi-grid-1x2"></i>
+                <span class="tooltip-text">Dashboard</span>
+            </a>
+            <a href="/graph" class="sidebar-link {% if request.path == '/graph' %}active{% endif %}">
+                <i class="bi bi-diagram-3"></i>
+                <span class="tooltip-text">Graphe Neo4j</span>
+            </a>
+            <a href="/marketing" class="sidebar-link {% if request.path == '/marketing' %}active{% endif %}">
+                <i class="bi bi-megaphone"></i>
+                <span class="tooltip-text">Marketing</span>
+            </a>
+        </nav>
+    </aside>
 
-    <div class="container-fluid px-4">
+    <!-- Main Content -->
+    <main class="main-content">
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
     <div id="toast-container"></div>
 
@@ -53,12 +305,19 @@
     <script>
         function showToast(msg, type='info') {
             const c = document.getElementById('toast-container');
-            const colors = {info:'#58a6ff', success:'#238636', error:'#da3633', warning:'#d29922'};
+            const icons = {info:'bi-info-circle', success:'bi-check-circle', error:'bi-x-circle', warning:'bi-exclamation-triangle'};
+            const colors = {
+                info: 'background:rgba(59,130,246,0.9);color:#fff',
+                success: 'background:rgba(16,185,129,0.9);color:#fff',
+                error: 'background:rgba(239,68,68,0.9);color:#fff',
+                warning: 'background:rgba(245,158,11,0.9);color:#fff'
+            };
             const d = document.createElement('div');
-            d.style.cssText = `background:${colors[type]||colors.info};color:#fff;padding:12px 20px;border-radius:8px;margin-top:8px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.4);`;
-            d.textContent = msg;
+            d.className = 'toast-item';
+            d.style.cssText = colors[type] || colors.info;
+            d.innerHTML = `<i class="bi ${icons[type]||icons.info}"></i> ${msg}`;
             c.appendChild(d);
-            setTimeout(() => d.remove(), 4000);
+            setTimeout(() => { d.style.animation = 'fadeOut 0.3s ease forwards'; setTimeout(() => d.remove(), 300); }, 3500);
         }
 
         function runAgent(name, params={}) {
@@ -70,30 +329,43 @@
             .then(r => r.json())
             .then(d => {
                 if (d.error) showToast(d.error, 'warning');
-                else showToast(`${name} lancé`, 'success');
+                else showToast(`${name} lancé avec succès`, 'success');
                 pollStatus();
             })
             .catch(e => showToast('Erreur: ' + e, 'error'));
         }
 
+        let _pollTimer = null;
         function pollStatus() {
+            if (_pollTimer) clearTimeout(_pollTimer);
             fetch('/api/status').then(r=>r.json()).then(data => {
                 for (const [name, st] of Object.entries(data)) {
+                    if (typeof st !== 'object' || st === null) continue;
                     const el = document.getElementById(`status-${name}`);
-                    if (el) {
-                        if (st.running) {
-                            el.innerHTML = '<span class="spinner-border spinner-border-sm spinner-running"></span> ' + st.message;
-                        } else {
-                            el.textContent = st.message || 'Prêt';
-                        }
+                    if (!el) continue;
+                    if (st.running) {
+                        el.innerHTML = '<span class="spinner-border spinner-border-sm spinner-running me-1"></span>' + st.message;
+                        el.className = 'small';
+                        el.style.color = 'var(--accent-blue)';
+                    } else if (st.message && st.message.includes('Erreur')) {
+                        el.innerHTML = '<i class="bi bi-x-circle me-1"></i>' + st.message;
+                        el.className = 'small';
+                        el.style.color = 'var(--accent-red)';
+                    } else if (st.message === 'Terminé') {
+                        el.innerHTML = '<i class="bi bi-check-circle me-1"></i>Terminé';
+                        el.className = 'small';
+                        el.style.color = 'var(--accent-green)';
+                    } else {
+                        el.textContent = st.message || 'Prêt';
+                        el.className = 'small text-secondary';
+                        el.style.color = '';
                     }
                 }
-                if (Object.values(data).some(s => s.running)) {
-                    setTimeout(pollStatus, 2000);
-                }
-            });
+                const anyRunning = Object.values(data).some(s => s && typeof s === 'object' && s.running);
+                _pollTimer = setTimeout(pollStatus, anyRunning ? 3000 : 8000);
+            }).catch(() => { _pollTimer = setTimeout(pollStatus, 8000); });
         }
-        setInterval(pollStatus, 5000);
+        _pollTimer = setTimeout(pollStatus, 3000);
     </script>
     {% block extra_scripts %}{% endblock %}
 </body>

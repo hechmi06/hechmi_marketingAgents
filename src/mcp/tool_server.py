@@ -14,11 +14,20 @@ mcp = FastMCP("sbt-tools")
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
-# Regex resserrée : exige un indicatif pays connu ou un format local à 10 chiffres
+# Regex élargie : indicatifs pays + formats locaux européens + tunisien/marocain
 PHONE_RE = re.compile(
     r"(?<!\d)"
-    r"(\+?(?:33|49|44|32|34|39|351|216|212|1)[\s.\-]?(?:\d[\s.\-]?){8,11}\d"
-    r"|0\d[\s.\-]?(?:\d[\s.\-]?){7,8}\d)"
+    r"("
+    # Format international : +33 / 0033 / +216 etc.
+    r"\+?(?:00)?(?:33|49|44|32|34|39|351|216|212|352|31|41|43|48|40|359)"
+    r"[\s.\-]?(?:\d[\s.\-]?){7,11}\d"
+    r"|"
+    # Format local France : 0X XX XX XX XX
+    r"0[1-9](?:[\s.\-]?\d{2}){4}"
+    r"|"
+    # Format Tunisie local : 2X/5X/7X/9X XXX XXX (8 chiffres)
+    r"(?:[2579]\d)[\s.\-]?\d{3}[\s.\-]?\d{3}"
+    r")"
     r"(?!\d)"
 )
 

@@ -1,5 +1,5 @@
-from typing import TypedDict, Annotated
-from langgraph.graph.message import add_messages
+from typing import TypedDict
+from operator import add
 
 
 class AgentState(TypedDict):
@@ -9,7 +9,7 @@ class AgentState(TypedDict):
     competitors_found:   int
     marketing_insights:  dict
     report_path:         str
-    messages:            Annotated[list, add_messages]
+    messages:            list
     errors:              list[str]
     max_per_query:       int
     limit_scraping:      int

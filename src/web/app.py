@@ -12,9 +12,10 @@ app = Flask(__name__, template_folder="templates")
 
 # État global des tâches en cours
 _task_status = {
-    "searcher":  {"running": False, "message": ""},
-    "scrapper":  {"running": False, "message": ""},
-    "marketing": {"running": False, "message": ""},
+    "searcher":      {"running": False, "message": ""},
+    "scrapper":      {"running": False, "message": ""},
+    "marketing":     {"running": False, "message": ""},
+    "orchestrator":  {"running": False, "message": "", "step": "", "progress": 0},
 }
 
 _marketing_results = {}
@@ -205,11 +206,7 @@ def api_stats():
 
 @app.route("/api/status")
 def api_status():
-    flat = {
-        **_task_status,
-        "marketing_running": _task_status["marketing"]["running"],
-    }
-    return jsonify(flat)
+    return jsonify(_task_status)
 
 
 @app.route("/api/marketing-results")
@@ -242,6 +239,47 @@ def api_run(agent_name: str):
 
         _run_async_in_thread("marketing", _run_and_store_marketing)
 
+    elif agent_name == "orchestrator":
+        if any(_task_status[a]["running"] for a in ("searcher", "scrapper", "marketing")):
+            return jsonify({"error": "Un agent est déjà en cours, attendez la fin"}), 409
+
+        from src.graph.orchestrator import run_pipeline as run_full_pipeline, set_step_callback
+
+        max_q = request.json.get("max_per_query", 5) if request.json else 5
+        limit = request.json.get("limit", 20) if request.json else 20
+
+        def _on_step(step_name, progress):
+            _task_status["orchestrator"]["step"] = step_name
+            _task_status["orchestrator"]["progress"] = progress
+
+        set_step_callback(_on_step)
+
+        async def _run_orchestrator():
+            global _marketing_results
+            orch = _task_status["orchestrator"]
+
+            orch["step"] = "target_searcher"
+            orch["progress"] = 10
+
+            final = await run_full_pipeline(max_per_query=max_q, limit_scraping=limit)
+
+            _task_status["searcher"]["running"] = False
+            _task_status["searcher"]["message"] = "Terminé"
+            _task_status["scrapper"]["running"] = False
+            _task_status["scrapper"]["message"] = "Terminé"
+            _task_status["marketing"]["running"] = False
+            _task_status["marketing"]["message"] = "Terminé"
+
+            insights = final.get("marketing_insights", {})
+            if insights:
+                _marketing_results = insights
+
+            orch["step"] = "done"
+            orch["progress"] = 100
+            return final
+
+        _run_async_in_thread("orchestrator", _run_orchestrator)
+
     else:
         return jsonify({"error": "Agent inconnu"}), 404
 
@@ -254,4 +292,4 @@ def api_run(agent_name: str):
 
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000, use_reloader=False)

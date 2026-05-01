@@ -28,6 +28,123 @@ PRIORITY_SLUGS = ["/contact", "/nous-contacter", "/contact-us"]
 
 _MD_LINK_RE = re.compile(r"\[(?:[^\]]*)\]\((https?://[^)]+)\)")
 
+# ---------------------------------------------------------------------------
+# Extraction du pays
+# ---------------------------------------------------------------------------
+
+_TLD_TO_COUNTRY = {
+    ".fr": "France",
+    ".de": "Germany",
+    ".es": "Spain",
+    ".it": "Italy",
+    ".be": "Belgium",
+    ".nl": "Netherlands",
+    ".pt": "Portugal",
+    ".ch": "Switzerland",
+    ".at": "Austria",
+    ".pl": "Poland",
+    ".ro": "Romania",
+    ".bg": "Bulgaria",
+    ".tn": "Tunisie",
+    ".ma": "Maroc",
+    ".lu": "Luxembourg",
+    ".gb": "United Kingdom",
+    ".uk": "United Kingdom",
+}
+
+_COUNTRY_KEYWORDS = {
+    "France":          [r"\bfrance\b", r"\bfrançais\b", r"\bfrançaise\b"],
+    "Germany":         [r"\bgermany\b", r"\bdeutschland\b", r"\bgmbh\b"],
+    "Spain":           [r"\bspain\b", r"\bespaña\b", r"\bespañol\b"],
+    "Italy":           [r"\bitaly\b", r"\bitalia\b", r"\bitaliano\b"],
+    "Belgium":         [r"\bbelgique\b", r"\bbelgium\b", r"\bbelgisch\b"],
+    "Romania":         [r"\bromania\b", r"\broumanie\b"],
+    "Bulgaria":        [r"\bbulgaria\b", r"\bbulgarie\b"],
+    "Tunisie":         [r"\btunisie\b", r"\btunisia\b", r"\btunisien\b"],
+    "Maroc":           [r"\bmaroc\b", r"\bmorocco\b", r"\bmarocain\b"],
+    "Netherlands":     [r"\bnetherlands\b", r"\bpays-bas\b", r"\bnederland\b"],
+    "Switzerland":     [r"\bsuisse\b", r"\bswitzerland\b", r"\bschweiz\b"],
+}
+
+
+def _extract_country(url: str, markdown: str) -> str | None:
+    """Détecte le pays depuis le TLD de l'URL, puis depuis le contenu."""
+    # 1. Depuis le TLD du domaine
+    try:
+        host = urlparse(url).netloc.lower()
+        for tld, country in _TLD_TO_COUNTRY.items():
+            if host.endswith(tld) or f"{tld}/" in url.lower():
+                return country
+    except Exception:
+        pass
+
+    # 2. Depuis les mots clés dans le contenu
+    text_lower = markdown.lower()
+    for country, patterns in _COUNTRY_KEYWORDS.items():
+        for pattern in patterns:
+            if re.search(pattern, text_lower):
+                return country
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Sélection du meilleur email / téléphone
+# ---------------------------------------------------------------------------
+
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+_PHONE_RE = re.compile(
+    r"(?<!\d)"
+    r"(\+?(?:33|49|44|32|34|39|351|216|212|1)[\s.\-]?(?:\d[\s.\-]?){8,11}\d"
+    r"|0\d[\s.\-]?(?:\d[\s.\-]?){7,8}\d)"
+    r"(?!\d)"
+)
+
+_EMAIL_PREFERRED = ["contact", "info", "commercial", "vente", "sales",
+                    "direction", "accueil", "hello", "bonjour"]
+_EMAIL_EXCLUDED  = ["noreply", "no-reply", "bounce", "daemon", "mailer",
+                    "donotreply", "postmaster", "webmaster", "support"]
+
+
+def _pick_best_email(emails: list[str]) -> str | None:
+    """Choisit l'email le plus pertinent depuis une liste."""
+    if not emails:
+        return None
+
+    # filtrer les emails indésirables
+    cleaned = [e for e in emails
+               if not any(bad in e.lower() for bad in _EMAIL_EXCLUDED)]
+    if not cleaned:
+        cleaned = emails
+
+    # préférer les emails génériques de contact
+    for email in cleaned:
+        prefix = email.split("@")[0].lower()
+        if any(p in prefix for p in _EMAIL_PREFERRED):
+            return email
+
+    return cleaned[0]
+
+
+def _pick_best_phone(phones: list[str]) -> str | None:
+    """Choisit le numéro le plus pertinent depuis une liste."""
+    if not phones:
+        return None
+
+    # préférer les numéros avec indicatif international
+    international = [p for p in phones if p.startswith("+") or p.startswith("00")]
+    if international:
+        return international[0]
+
+    return phones[0]
+
+
+def _extract_contacts_from_markdown(markdown: str) -> tuple[list[str], list[str]]:
+    """Extrait emails et téléphones depuis un texte markdown."""
+    emails = sorted(set(_EMAIL_RE.findall(markdown)))
+    phones = sorted(set(_PHONE_RE.findall(markdown)))
+    return emails, phones
+
 
 # ---------------------------------------------------------------------------
 # Détection de mentions
@@ -105,24 +222,48 @@ async def _scrape_all_pages(
     client: MCPSearchClient,
     url: str,
     main_scrape: dict,
-) -> str:
+) -> tuple[str, list[str], list[str]]:
+    """
+    Scrape la page principale + sous-pages.
+    Retourne (combined_markdown, all_emails, all_phones).
+    """
     main_md = main_scrape.get("markdown", "")
     if not main_md:
-        return ""
+        return "", [], []
 
     markdowns = [f"# Page principale : {url}\n\n{main_md}"]
+
+    # Contacts depuis la page principale (MCP regex)
+    all_emails = list(main_scrape.get("emails", []))
+    all_phones = list(main_scrape.get("phones", []))
 
     subpage_urls = _find_subpage_urls(url, main_md)
     for sub_url in subpage_urls:
         try:
             page = await client.scrape(sub_url, max_chars=15000)
             if page.get("status") == "ok" and page.get("markdown"):
-                markdowns.append(f"# Sous-page : {sub_url}\n\n{page['markdown']}")
+                sub_md = page["markdown"]
+                markdowns.append(f"# Sous-page : {sub_url}\n\n{sub_md}")
                 logger.debug(f"  Sous-page scrapée : {sub_url}")
+
+                # Collecter contacts MCP depuis la sous-page
+                all_emails.extend(page.get("emails", []))
+                all_phones.extend(page.get("phones", []))
+
+                # Extraction regex complémentaire depuis le markdown
+                extra_emails, extra_phones = _extract_contacts_from_markdown(sub_md)
+                all_emails.extend(extra_emails)
+                all_phones.extend(extra_phones)
+
         except Exception as e:
             logger.debug(f"  Sous-page ignorée {sub_url}: {e}")
 
-    return "\n\n---\n\n".join(markdowns)[:60000]
+    # Déduplication
+    all_emails = list(dict.fromkeys(all_emails))
+    all_phones = list(dict.fromkeys(all_phones))
+
+    combined = "\n\n---\n\n".join(markdowns)[:60000]
+    return combined, all_emails, all_phones
 
 
 # ---------------------------------------------------------------------------
@@ -231,36 +372,41 @@ async def process_company(
         mark_search_result(url, "error")
         return
 
-    emails_regex = main_scrape.get("emails", [])
-    phones_regex = main_scrape.get("phones", [])
-    final_email  = emails_regex[0] if emails_regex else None
-    final_phone  = phones_regex[0] if phones_regex else None
-    logger.debug(f"[{domain}] Contacts — email: {final_email} | phone: {final_phone}")
+    # 2. Scrape multi-pages + collecte contacts de toutes les pages
+    combined_markdown, all_emails, all_phones = await _scrape_all_pages(client, url, main_scrape)
 
-    # 2. Scrape multi-pages
-    combined_markdown = await _scrape_all_pages(client, url, main_scrape)
+    # Sélection des meilleurs contacts
+    final_email = _pick_best_email(all_emails)
+    final_phone = _pick_best_phone(all_phones)
+    logger.debug(f"[{domain}] Contacts — email: {final_email} | phone: {final_phone} ({len(all_emails)} emails, {len(all_phones)} tels trouvés)")
 
-    # 3. Extraction LLM
+    # 3. Extraction pays (TLD + contenu)
+    country_detected = _extract_country(url, combined_markdown)
+    logger.debug(f"[{domain}] Pays détecté : {country_detected}")
+
+    # 4. Extraction LLM
     extracted = await _extract_company_llm(combined_markdown, title)
     logger.debug(f"[{domain}] Extraction LLM : {extracted}")
 
-    # 4. Sauvegarde SQLite
+    # 5. Sauvegarde SQLite
     save_raw_company({
         "name":        extracted.get("name") or title,
         "phone":       final_phone or "",
         "email":       final_email or "",
         "website":     url,
+        "country":     country_detected or "",
         "description": extracted.get("description") or snippet,
         "address":     extracted.get("address") or "",
         "linkedin":    extracted.get("linkedin") or "",
         "raw":         combined_markdown[:5000],
     })
 
-    # 5. Construire l'objet Company
+    # 6. Construire l'objet Company
     company = Company(
         name=extracted.get("name") or title,
         website=url,
         tier=tier_final,
+        country=country_detected,
         email=final_email,
         phone=final_phone,
         address=extracted.get("address"),
@@ -270,13 +416,13 @@ async def process_company(
         confidence=round(score / 100, 2) if score else None,
     )
 
-    # 6. Upsert Neo4j + relation BELONGS_TO
+    # 7. Upsert Neo4j + relation BELONGS_TO
     gs.upsert_company(company)
     gs.link_company_to_tier(company.name, company.tier)
     known_names.add(company.name)
     logger.debug(f"[{domain}] Company upsertée (Tier {company.tier})")
 
-    # 7. Relations — mentions + partenaires LLM
+    # 8. Relations — mentions + partenaires LLM
     mentions_found = _detect_mentions(combined_markdown, company.name, list(known_names))
     for mentioned in mentions_found:
         gs.create_mention_relation(company.name, mentioned)
@@ -294,7 +440,7 @@ async def process_company(
             known_names.add(partner)
             logger.info(f"[{domain}] NOUVEAU + MENTIONS : {partner} (via {company.name})")
 
-    # 8. POTENTIAL_SUPPLIER par région
+    # 9. POTENTIAL_SUPPLIER par région
     company_region = _extract_region(company.address)
     if company_region:
         if company.tier == 2:
@@ -314,14 +460,14 @@ async def process_company(
                     )
                     logger.info(f"[{domain}] POTENTIAL_SUPPLIER : {t2['name']} → {company.name}")
 
-    # 9. Embedding
+    # 10. Embedding
     embed_text = f"{company.name} {company.description or ''}"
     embedding  = await generate_embedding_async(embed_text)
     if embedding:
         gs.update_embedding(company.name, embedding)
         logger.debug(f"[{domain}] Embedding stocké ({len(embedding)} dims)")
 
-    # 10. Marquer comme traité
+    # 11. Marquer comme traité
     mark_search_result(url, "scraped")
     logger.success(f"[{domain}] Traitement terminé")
 
